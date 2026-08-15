@@ -1,0 +1,51 @@
+name: Factory Generator Check
+
+on:
+  pull_request:
+    paths:
+      - "packages/editor/src/core/factory/**"
+      - "packages/editor/src/components/es/plugin/builtin/FactoryGenerator.vue"
+      - "packages/editor/src/plugin/**"
+      - "packages/editor/public/static/factory/**"
+      - "packages/sdk/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/factory-generator-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Astral3D SDK
+        run: pnpm run sdk:build
+
+      - name: Typecheck editor
+        run: pnpm run editor:tsc
+
+      - name: Build editor
+        run: pnpm run -C packages/editor build
