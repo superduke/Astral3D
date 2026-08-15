@@ -4,13 +4,12 @@ import type {
   FactoryAssetBatch,
   FactoryAssetRegistryEntry,
   FactoryManifest,
-  FactoryScale,
 } from "./FactoryManifest";
 import { AssetPlacer } from "./AssetPlacer";
 import { FactoryAssetRegistry } from "./FactoryAssetRegistry";
-import { GlbAssetLoader } from "./GlbAssetLoader";
+import { FactoryGlbBatchFactory } from "./FactoryGlbBatchFactory";
+import { FactoryGlbTemplateCache } from "./FactoryGlbTemplateCache";
 import { prepareFactoryObjectForAstral } from "./FactoryAstralCompat";
-import { computeFactoryObjectBounds } from "./FactorySafeBounds";
 
 export interface FactoryAssetUpgradeSummary {
   requested: number;
@@ -21,12 +20,13 @@ export interface FactoryAssetUpgradeSummary {
 
 export class FactoryAssetUpgradeService {
   private readonly registry: FactoryAssetRegistry;
-  private readonly loader = new GlbAssetLoader();
+  private readonly templates = new FactoryGlbTemplateCache();
+  private readonly batchFactory = new FactoryGlbBatchFactory();
   private readonly placer: AssetPlacer;
 
   constructor(
     private readonly manifest: FactoryManifest,
-    private readonly groundOffset = 0,
+    groundOffset = 0,
   ) {
     this.registry = new FactoryAssetRegistry(manifest);
     this.placer = new AssetPlacer(groundOffset, this.registry);
@@ -95,88 +95,11 @@ export class FactoryAssetUpgradeService {
     batch: FactoryAssetBatch,
     entry: FactoryAssetRegistryEntry,
   ): Promise<THREE.Group> {
-    if (!entry.source?.url) {
-      throw new Error(`Registry asset has no GLB URL: ${entry.id}`);
-    }
-
-    const source = await this.loader.load(entry.source.url);
-    const prepared = this.prepareSource(source, entry);
+    const template = await this.templates.get(entry);
     const transforms = this.placer.createTransforms(batch);
-
-    const group = new THREE.Group();
-    group.name = batch.id;
-    group.userData = {
-      assetId: batch.id,
-      assetType: entry.id,
-      registryAssetId: entry.id,
-      renderSource: "glb",
-      sourceUrl: entry.source.url,
-      instanceCount: transforms.length,
-      label: batch.label ?? entry.label ?? batch.id,
-      ...(entry.userData ?? {}),
-      ...(batch.userData ?? {}),
-    };
-
-    transforms.forEach((transform, index) => {
-      const clone = App.cloneObject(prepared);
-      clone.name = transform.id;
-      clone.position.copy(transform.position);
-      clone.position.y += entry.elevationOffset ?? 0;
-      clone.rotation.y += transform.rotationY ?? 0;
-      clone.scale.multiply(transform.scale ?? new THREE.Vector3(1, 1, 1));
-      clone.userData = {
-        ...clone.userData,
-        assetId: transform.id,
-        assetType: entry.id,
-        registryAssetId: entry.id,
-        parentAssetId: batch.id,
-        renderSource: "glb",
-        instanceIndex: index,
-      };
-      group.add(clone);
-    });
-
-    return group;
-  }
-
-  private prepareSource(
-    source: THREE.Object3D,
-    entry: FactoryAssetRegistryEntry,
-  ): THREE.Group {
-    const wrapper = new THREE.Group();
-    wrapper.name = `${entry.id}_SOURCE`;
-
-    const model = App.cloneObject(source);
-    model.scale.multiply(this.toScale(entry.defaultScale));
-    model.rotation.y += THREE.MathUtils.degToRad(entry.rotationOffsetDeg ?? 0);
-    wrapper.add(model);
-    wrapper.updateMatrixWorld(true);
-
-    if ((entry.anchor ?? "center-base") === "center-base") {
-      const box = computeFactoryObjectBounds(wrapper);
-      if (!box.isEmpty()) {
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.x -= center.x;
-        model.position.z -= center.z;
-        model.position.y -= box.min.y;
-        wrapper.updateMatrixWorld(true);
-      }
+    if (!transforms.length) {
+      throw new Error(`Asset batch has no placements: ${batch.id}`);
     }
-
-    wrapper.userData = {
-      registryAssetId: entry.id,
-      sourceUrl: entry.source?.url,
-      preparedAssetSource: true,
-    };
-
-    return wrapper;
-  }
-
-  private toScale(scale?: FactoryScale): THREE.Vector3 {
-    if (Array.isArray(scale)) {
-      return new THREE.Vector3(scale[0], scale[1], scale[2]);
-    }
-    const value = scale ?? 1;
-    return new THREE.Vector3(value, value, value);
+    return this.batchFactory.create(batch, entry, template, transforms);
   }
 }
