@@ -50,8 +50,14 @@ export class FactoryGlbTemplateCache {
   private async prepare(
     entry: FactoryAssetRegistryEntry,
   ): Promise<FactoryGlbTemplate> {
-    const source = await this.loader.load(entry.source!.url);
-    const object = this.normalizer.normalize(source, entry);
+    const loaded = await this.loader.load(entry.source!.url);
+    const object = this.normalizer.normalize(loaded.scene, entry);
+
+    // GLTFLoader returns animation clips beside the scene rather than as scene
+    // children. Preserve them on the normalized root so validation can prevent
+    // animated assets from incorrectly entering the static InstancedMesh path.
+    object.animations = [...loaded.animations];
+
     const validation = this.validator.validate(object, entry);
 
     for (const warning of validation.warnings) {
