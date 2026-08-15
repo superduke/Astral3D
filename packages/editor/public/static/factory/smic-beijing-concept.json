@@ -1,11 +1,11 @@
 {
   "meta": {
     "name": "SMIC Beijing Concept Site Plan",
-    "version": "0.4",
+    "version": "0.5",
     "unit": "meter",
     "coordinateSystem": "LOCAL_CARTESIAN_NORTH_UP",
     "accuracy": "conceptual / visualization-grade",
-    "disclaimer": "Approximate exterior massing for digital-twin visualization; not survey/as-built data. Facility equipment and pipe-rack routes are illustrative rather than surveyed locations."
+    "disclaimer": "Approximate exterior massing for digital-twin visualization; not survey/as-built data. Facility equipment, pipe-rack routes and gate locations are illustrative rather than surveyed locations."
   },
   "siteBoundary": [
     {"x":0,"y":35},{"x":45,"y":0},{"x":655,"y":0},{"x":715,"y":55},
@@ -58,6 +58,17 @@
     [{"x":275,"y":555},{"x":320,"y":555},{"x":320,"y":690},{"x":275,"y":690}],
     [{"x":280,"y":55},{"x":305,"y":55},{"x":305,"y":235},{"x":280,"y":235}]
   ],
+  "campus": {
+    "roadMarkings": true,
+    "parkingSlots": true,
+    "perimeterFence": true,
+    "fenceHeight": 2.4,
+    "fencePostSpacing": 6,
+    "gates": [
+      {"id":"GATE_EAST_DEMO","label":"Illustrative East Gate","x":705,"y":255,"width":12,"height":3.4,"rotationDeg":0},
+      {"id":"GATE_SOUTH_DEMO","label":"Illustrative South Gate","x":300,"y":18,"width":10,"height":3.2,"rotationDeg":90}
+    ]
+  },
   "pipeRacks": [
     {
       "id":"PR_NORTH_01",
