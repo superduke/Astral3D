@@ -3,6 +3,7 @@ import type {
   FactoryBuilding,
   FactoryManifest,
   FactoryParking,
+  FactoryPipeRack,
   FactoryRoad,
   Point2,
 } from "./FactoryManifest";
@@ -11,10 +12,13 @@ export interface DxfFactoryManifestParserOptions {
   name?: string;
   defaultBuildingHeight?: number;
   defaultRoadWidth?: number;
+  defaultPipeRackWidth?: number;
+  defaultPipeRackHeight?: number;
   layerMap?: Partial<{
     siteBoundary: string;
     buildingFootprint: string;
     roadCenterline: string;
+    pipeRackCenterline: string;
     parking: string;
     green: string;
   }>;
@@ -46,6 +50,7 @@ const DEFAULT_LAYER_MAP = {
   siteBoundary: "SITE_BOUNDARY",
   buildingFootprint: "BUILDING_FOOTPRINT",
   roadCenterline: "ROAD_CENTERLINE",
+  pipeRackCenterline: "PIPE_RACK_CENTERLINE",
   parking: "PARKING",
   green: "GREEN",
 };
@@ -62,6 +67,8 @@ export class DxfFactoryManifestParser {
       name: options.name ?? "DXF Factory Site",
       defaultBuildingHeight: options.defaultBuildingHeight ?? 18,
       defaultRoadWidth: options.defaultRoadWidth ?? 12,
+      defaultPipeRackWidth: options.defaultPipeRackWidth ?? 6,
+      defaultPipeRackHeight: options.defaultPipeRackHeight ?? 6.5,
       layerMap: {
         ...DEFAULT_LAYER_MAP,
         ...(options.layerMap ?? {}),
@@ -79,12 +86,14 @@ export class DxfFactoryManifestParser {
     const siteBoundaries: Point2[][] = [];
     const buildings: FactoryBuilding[] = [];
     const roads: FactoryRoad[] = [];
+    const pipeRacks: FactoryPipeRack[] = [];
     const parking: FactoryParking[] = [];
     const greenAreas: Point2[][] = [];
     const textLabels: DxfTextLabel[] = [];
 
     let buildingIndex = 0;
     let roadIndex = 0;
+    let pipeRackIndex = 0;
     let parkingIndex = 0;
 
     for (const entity of dxf.entities) {
@@ -135,6 +144,21 @@ export class DxfFactoryManifestParser {
         continue;
       }
 
+      if (layer === this.options.layerMap.pipeRackCenterline.toUpperCase()) {
+        pipeRackIndex++;
+        pipeRacks.push({
+          id: `PIPE_RACK_${String(pipeRackIndex).padStart(3, "0")}`,
+          label: `Pipe Rack ${pipeRackIndex}`,
+          path: points.map((point) => [point.x, point.y] as [number, number]),
+          width: this.options.defaultPipeRackWidth,
+          height: this.options.defaultPipeRackHeight,
+          columnSpacing: 8,
+          tiers: 2,
+          pipeCount: 6,
+        });
+        continue;
+      }
+
       if (layer === this.options.layerMap.parking.toUpperCase()) {
         if (points.length < 3) continue;
         parkingIndex++;
@@ -158,7 +182,7 @@ export class DxfFactoryManifestParser {
     return {
       meta: {
         name: this.options.name,
-        version: "dxf-import-0.2",
+        version: "dxf-import-0.3",
         unit: "meter",
         coordinateSystem: "LOCAL_CARTESIAN_NORTH_UP",
         accuracy: "derived from DXF entities",
@@ -168,6 +192,7 @@ export class DxfFactoryManifestParser {
       roads,
       parking,
       greenAreas,
+      pipeRacks,
     };
   }
 
@@ -212,6 +237,12 @@ export class DxfFactoryManifestParser {
       building.facade = {
         ...(building.facade ?? {}),
         windowBand: type === "fab" || type === "office",
+        panelJoints: type === "fab",
+        panelWidth: type === "fab" ? 6 : undefined,
+        louverBands: type === "utility" ? 2 : undefined,
+        loadingBayCount:
+          type === "warehouse" ? 4 : type === "support" ? 2 : undefined,
+        canopy: type === "warehouse" || type === "support" ? true : undefined,
       };
       building.roof = {
         ...(building.roof ?? {}),
