@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { App, AddObjectCommand } from "@astral3d/engine";
 import type { FactoryManifest } from "@/core/factory/FactoryManifest";
 import { FactorySceneBuilder } from "@/core/factory/FactorySceneBuilder";
+import { FactorySceneEnhancer } from "@/core/factory/FactorySceneEnhancer";
 import { DxfFactoryManifestParser } from "@/core/factory/DxfFactoryManifestParser";
 
 const fileName = ref("");
@@ -16,6 +17,7 @@ async function generate(manifest: FactoryManifest) {
     rootName: manifest.meta?.name ?? "FACTORY_GENERATED",
   });
   const root = builder.build();
+  new FactorySceneEnhancer(manifest).apply(root);
   App.execute(new AddObjectCommand(root));
 
   const instanceCount = (manifest.assets ?? []).reduce((sum, batch) => {
@@ -28,6 +30,7 @@ async function generate(manifest: FactoryManifest) {
   status.value =
     `生成完成：${manifest.buildings?.length ?? 0} 栋建筑，` +
     `${manifest.roads?.length ?? 0} 组道路，` +
+    `${manifest.pipeRacks?.length ?? 0} 组 Pipe Rack，` +
     `${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例。`;
 }
 
@@ -94,7 +97,7 @@ defineExpose({ handleClose });
     <div class="intro">
       <h3>DXF / Factory Manifest → Astral3D Scene</h3>
       <p>
-        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持多边形建筑轮廓和 InstancedMesh 重复资产。
+        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持多边形建筑、L2.5 工业立面、Pipe Rack 和 InstancedMesh 重复资产。
       </p>
     </div>
 
@@ -123,8 +126,9 @@ defineExpose({ handleClose });
       SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PARKING / GREEN。
       <br />
       <strong>生成能力：</strong>
-      SITE / BUILDINGS / ROADS / PARKING / GREEN / ASSETS；建筑支持 rectangle 与 polygon footprint；
-      FAB/Utility 屋顶可实例化生成 HVAC、排气筒和 scrubber；园区支持 cooling tower、transformer、street light、tree 批量实例。
+      SITE / BUILDINGS / ROADS / PARKING / GREEN / PIPE_RACKS / ASSETS；建筑支持 rectangle 与 polygon footprint；
+      FAB 可生成立面分板，Utility 可生成百叶，Warehouse/Support 可生成装卸口与雨棚；
+      FAB/Utility 屋顶支持 HVAC、排气筒、scrubber，园区支持 cooling tower、transformer、street light、tree 批量实例。
     </div>
   </div>
 </template>
