@@ -22,6 +22,15 @@ export class FactoryAssetRegistry {
     return id ? this.entries.get(id) : undefined;
   }
 
+  findByFallbackTemplate(
+    template: FactoryAssetTemplate,
+  ): FactoryAssetRegistryEntry | undefined {
+    const normalized = template.toLowerCase();
+    return [...this.entries.values()].find(
+      (entry) => entry.fallbackTemplate?.toLowerCase() === normalized,
+    );
+  }
+
   resolveFallbackTemplate(batch: FactoryAssetBatch): FactoryAssetTemplate {
     return (
       batch.template ??
