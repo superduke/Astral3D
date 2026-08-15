@@ -99,7 +99,7 @@ export class FactoryVisualTuner {
       const bodyColor = palette[type] ?? palette.building;
 
       building.traverse((object) => {
-        if (!object.isMesh) return;
+        if (!(object as THREE.Mesh).isMesh) return;
         if (object.name.endsWith("_BODY")) {
           this.tuneMaterial(object, {
             color: bodyColor,
@@ -132,7 +132,7 @@ export class FactoryVisualTuner {
   private tuneRoadsAndParking(root: THREE.Group): void {
     const roads = root.getObjectByName("ROADS");
     roads?.traverse((object) => {
-      if (!object.isMesh) return;
+      if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
         color: 0x2f373f,
         roughness: 0.97,
@@ -142,7 +142,7 @@ export class FactoryVisualTuner {
 
     const parking = root.getObjectByName("PARKING");
     parking?.traverse((object) => {
-      if (!object.isMesh) return;
+      if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
         color: 0x48535c,
         roughness: 0.96,
@@ -152,7 +152,7 @@ export class FactoryVisualTuner {
 
     const green = root.getObjectByName("GREEN");
     green?.traverse((object) => {
-      if (!object.isMesh) return;
+      if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
         color: 0x55775a,
         roughness: 1,
@@ -167,7 +167,7 @@ export class FactoryVisualTuner {
 
     const roadMarkings = details.getObjectByName("ROAD_MARKINGS");
     roadMarkings?.traverse((object) => {
-      if (!object.isMesh) return;
+      if (!(object as THREE.Mesh).isMesh) return;
       if (object.name.includes("CENTER_DASH")) {
         this.tuneMaterial(object, { color: 0xf0c85c });
         object.renderOrder = 3;
@@ -179,7 +179,7 @@ export class FactoryVisualTuner {
 
     const parkingSlots = details.getObjectByName("PARKING_SLOTS");
     parkingSlots?.traverse((object) => {
-      if (!object.isMesh) return;
+      if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, { color: 0xf4f6f7 });
       object.renderOrder = 3;
     });
@@ -188,7 +188,7 @@ export class FactoryVisualTuner {
   private tunePipeRacks(root: THREE.Group): void {
     const racks = root.getObjectByName("PIPE_RACKS");
     racks?.traverse((object) => {
-      if (!object.isMesh) return;
+      if (!(object as THREE.Mesh).isMesh) return;
       const type = String(object.userData?.assetType ?? "");
       if (type === "utility_pipe") {
         this.tuneMaterial(object, {
