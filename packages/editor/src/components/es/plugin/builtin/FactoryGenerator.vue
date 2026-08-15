@@ -5,6 +5,7 @@ import type { FactoryManifest } from "@/core/factory/FactoryManifest";
 import { FactorySceneBuilder } from "@/core/factory/FactorySceneBuilder";
 import { FactorySceneEnhancer } from "@/core/factory/FactorySceneEnhancer";
 import { DxfFactoryManifestParser } from "@/core/factory/DxfFactoryManifestParser";
+import { FactoryAssetUpgradeService } from "@/core/factory/FactoryAssetUpgradeService";
 
 const fileName = ref("");
 const status = ref("请选择 Factory Manifest JSON / DXF。也可以直接加载内置示例。");
@@ -29,11 +30,27 @@ async function generate(manifest: FactoryManifest) {
     return sum + explicit + grid + line;
   }, 0);
 
+  const glbRegistryCount = (manifest.assetRegistry ?? []).filter(
+    (entry) => entry.source?.type === "glb",
+  ).length;
+
+  if (glbRegistryCount) {
+    status.value =
+      `基础场景已生成，正在加载 ${glbRegistryCount} 个 GLB 资产定义；加载失败时将保留 procedural fallback…`;
+  }
+
+  const upgrade = await new FactoryAssetUpgradeService(manifest).upgrade(root);
+  const upgradeText = upgrade.requested
+    ? `GLB 升级 ${upgrade.upgraded}/${upgrade.requested}` +
+      (upgrade.failed.length ? `，${upgrade.failed.length} 个加载失败已保留 fallback` : "")
+    : "当前使用 procedural / registry fallback";
+
   status.value =
     `生成完成：${manifest.buildings?.length ?? 0} 栋建筑，` +
     `${manifest.roads?.length ?? 0} 组道路，` +
     `${manifest.pipeRacks?.length ?? 0} 组 Pipe Rack，` +
-    `${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例。`;
+    `${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例；` +
+    upgradeText + "。";
 }
 
 async function manifestFromFile(file: File): Promise<FactoryManifest> {
@@ -101,7 +118,7 @@ defineExpose({ handleClose });
     <div class="intro">
       <h3>DXF / Factory Manifest → Astral3D Scene</h3>
       <p>
-        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持多边形建筑、L2.5 工业立面、Pipe Rack 和 InstancedMesh 重复资产。
+        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持 L2.5 工业生成、Pipe Rack、重复资产和 Asset Registry → GLB 自动升级。
       </p>
     </div>
 
@@ -127,10 +144,11 @@ defineExpose({ handleClose });
       <strong>DXF 图层约定：</strong>
       SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PIPE_RACK_CENTERLINE / PARKING / GREEN。
       <br />
+      <strong>资产策略：</strong>
+      ASSETS 先同步生成 procedural fallback；Manifest 的 assetRegistry 若为资产配置 GLB URL，则场景加入后异步原位升级。GLB 加载失败不会阻断园区生成。
+      <br />
       <strong>生成能力：</strong>
-      SITE / BUILDINGS / ROADS / PARKING / GREEN / PIPE_RACKS / ASSETS；建筑支持 rectangle 与 polygon footprint；
-      FAB 可生成立面分板，Utility 可生成百叶，Warehouse/Support 可生成装卸口与雨棚；
-      FAB/Utility 屋顶支持 HVAC、排气筒、scrubber，园区支持 cooling tower、transformer、street light、tree 批量实例。
+      FAB 立面分板、Utility 百叶、Warehouse/Support 装卸口与雨棚、屋顶 HVAC/排气筒/scrubber、Pipe Rack、道路/停车标线、围栏、门区及批量园区资产。
     </div>
   </div>
 </template>
