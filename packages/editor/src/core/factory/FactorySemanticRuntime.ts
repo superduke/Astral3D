@@ -9,6 +9,12 @@ export interface FactorySemanticHit {
   userData: Record<string, unknown>;
 }
 
+export interface FactoryAssetAnchor {
+  object: THREE.Object3D;
+  position: THREE.Vector3;
+  instanceId?: number;
+}
+
 export class FactorySemanticRuntime {
   constructor(private readonly root: THREE.Object3D) {}
 
@@ -41,6 +47,38 @@ export class FactorySemanticRuntime {
     if (select) App.select(object);
     App.focus(object);
     return object;
+  }
+
+  getAssetAnchor(assetId: string): FactoryAssetAnchor | undefined {
+    let anchor: FactoryAssetAnchor | undefined;
+
+    this.root.updateMatrixWorld(true);
+    this.root.traverse((object) => {
+      if (anchor) return;
+
+      const instanceIds = object.userData?.instanceAssetIds;
+      if (object.isInstancedMesh && Array.isArray(instanceIds)) {
+        const instanceId = instanceIds.indexOf(assetId);
+        if (instanceId >= 0) {
+          const matrix = new THREE.Matrix4();
+          (object as THREE.InstancedMesh).getMatrixAt(instanceId, matrix);
+          matrix.premultiply(object.matrixWorld);
+          const position = new THREE.Vector3().setFromMatrixPosition(matrix);
+          anchor = { object, position, instanceId };
+          return;
+        }
+      }
+
+      if (object.userData?.assetId === assetId) {
+        const box = new THREE.Box3().setFromObject(object);
+        const position = box.isEmpty()
+          ? object.getWorldPosition(new THREE.Vector3())
+          : box.getCenter(new THREE.Vector3()).setY(box.max.y);
+        anchor = { object, position };
+      }
+    });
+
+    return anchor;
   }
 
   /**
