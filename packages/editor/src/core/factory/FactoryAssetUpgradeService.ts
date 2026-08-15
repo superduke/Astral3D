@@ -9,6 +9,8 @@ import type {
 import { AssetPlacer } from "./AssetPlacer";
 import { FactoryAssetRegistry } from "./FactoryAssetRegistry";
 import { GlbAssetLoader } from "./GlbAssetLoader";
+import { prepareFactoryObjectForAstral } from "./FactoryAstralCompat";
+import { computeFactoryObjectBounds } from "./FactorySafeBounds";
 
 export interface FactoryAssetUpgradeSummary {
   requested: number;
@@ -60,7 +62,9 @@ export class FactoryAssetUpgradeService {
         const index = parent.children.indexOf(fallback);
 
         // The root is already part of Astral3D by the time upgrades run.
-        // Use App add/remove helpers so geometry/material bookkeeping stays valid.
+        // Bridge editor-created Three objects before App.addObject so subtype
+        // prototypes such as Mesh/InstancedMesh remain intact.
+        prepareFactoryObjectForAstral(realGroup);
         App.removeObject(fallback);
         App.addObject(realGroup, parent, index);
         summary.upgraded++;
@@ -149,7 +153,7 @@ export class FactoryAssetUpgradeService {
     wrapper.updateMatrixWorld(true);
 
     if ((entry.anchor ?? "center-base") === "center-base") {
-      const box = new THREE.Box3().setFromObject(wrapper);
+      const box = computeFactoryObjectBounds(wrapper);
       if (!box.isEmpty()) {
         const center = box.getCenter(new THREE.Vector3());
         model.position.x -= center.x;
