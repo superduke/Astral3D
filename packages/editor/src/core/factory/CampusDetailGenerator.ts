@@ -68,8 +68,8 @@ export class CampusDetailGenerator {
       parentAssetId: road.id,
     };
 
-    const white = new THREE.MeshBasicMaterial({ color: 0xe8ecef });
-    const yellow = new THREE.MeshBasicMaterial({ color: 0xd8b74f });
+    const white = new THREE.MeshBasicMaterial({ color: 0xf2f5f7 });
+    const yellow = new THREE.MeshBasicMaterial({ color: 0xf2c55b });
     const points = road.points ?? [];
 
     for (let index = 0; index < points.length - 1; index++) {
@@ -86,10 +86,9 @@ export class CampusDetailGenerator {
         const offset = Math.max(0.4, halfWidth - 0.45) * side;
         const center = a.clone().lerp(b, 0.5).addScaledVector(normal, offset);
         const edge = new THREE.Mesh(
-          // 9 cm lines were technically present but aliased away in a
-          // 700–800 m campus overview. Keep them plausible while ensuring the
-          // lane boundary survives normal digital-twin viewing distances.
-          new THREE.BoxGeometry(0.16, 0.03, length),
+          // 18 cm is still physically restrained at factory scale, but gives
+          // enough raster footprint to survive 700–800 m Top/overview framing.
+          new THREE.BoxGeometry(0.18, 0.03, length),
           white,
         );
         edge.name = `${road.id}_EDGE_${index + 1}_${side > 0 ? "R" : "L"}`;
@@ -98,9 +97,8 @@ export class CampusDetailGenerator {
         group.add(edge);
       }
 
-      // The original 3.2 m / 4.0 m dash pattern became a dense dotted texture
-      // in the whole-campus view. A longer visualization-grade cadence reads as
-      // a road centerline from afar and also reduces object count.
+      // Keep the longer visualization-grade cadence introduced for overview
+      // readability; only make the dash slightly wider so it survives AA/downscale.
       const dashLength = 5.5;
       const gap = 7.5;
       const stride = dashLength + gap;
@@ -112,7 +110,7 @@ export class CampusDetailGenerator {
         );
         const center = a.clone().addScaledVector(tangent, distance);
         const dash = new THREE.Mesh(
-          new THREE.BoxGeometry(0.18, 0.035, dashLength),
+          new THREE.BoxGeometry(0.21, 0.035, dashLength),
           yellow,
         );
         dash.name = `${road.id}_CENTER_DASH_${index + 1}_${dashIndex + 1}`;
@@ -133,10 +131,12 @@ export class CampusDetailGenerator {
       parentAssetId: item.id,
     };
 
-    const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xf1f3f4 });
+    const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xf7f9fa });
     const slotWidth = 2.7;
     const slotDepth = 5.3;
-    const lineWidth = 0.12;
+    // Final overview pass: +16.7% from the previous 12 cm line, intentionally
+    // stopping well below diagram-like widths.
+    const lineWidth = 0.14;
     const y = this.groundOffset + 0.105;
 
     if (item.w >= item.h) {
