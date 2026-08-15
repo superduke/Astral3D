@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { App, AddObjectCommand } from "@astral3d/engine";
+import { App, AddObjectCommand, Hooks } from "@astral3d/engine";
 import type { FactoryManifest } from "@/core/factory/FactoryManifest";
 import { FactorySceneBuilder } from "@/core/factory/FactorySceneBuilder";
 import { FactorySceneEnhancer } from "@/core/factory/FactorySceneEnhancer";
 import { DxfFactoryManifestParser } from "@/core/factory/DxfFactoryManifestParser";
 import { FactoryAssetRegistry } from "@/core/factory/FactoryAssetRegistry";
 import { FactoryAssetUpgradeService } from "@/core/factory/FactoryAssetUpgradeService";
+import { FactorySemanticRuntime } from "@/core/factory/FactorySemanticRuntime";
 
 const fileName = ref("");
 const status = ref("请选择 Factory Manifest JSON / DXF。也可以直接加载内置示例。");
@@ -15,6 +16,22 @@ const dxfBuildingHeight = ref(18);
 const dxfRoadWidth = ref(12);
 const dxfPipeRackWidth = ref(6);
 const dxfPipeRackHeight = ref(6.5);
+const assetIdQuery = ref("FAB_A");
+const semanticStatus = ref("生成场景后，可输入 assetId 聚焦，或直接点击园区对象查看语义。");
+let semanticRuntime: FactorySemanticRuntime | null = null;
+
+function handleIntersectionsDetected(intersections: any[]) {
+  if (!semanticRuntime || !intersections?.length) return;
+  const hit = semanticRuntime.resolveIntersection(intersections[0]);
+  if (!hit.assetId && !hit.assetType) return;
+
+  if (hit.assetId) assetIdQuery.value = hit.assetId;
+  semanticStatus.value =
+    `点击语义：assetId=${hit.assetId ?? "-"} / assetType=${hit.assetType ?? "-"}` +
+    (Number.isInteger(hit.instanceId) ? ` / instanceId=${hit.instanceId}` : "");
+}
+
+Hooks.useAddSignal("intersectionsDetected", handleIntersectionsDetected);
 
 async function generate(manifest: FactoryManifest) {
   new FactoryAssetRegistry(manifest).applyFallbackTemplates();
@@ -25,6 +42,7 @@ async function generate(manifest: FactoryManifest) {
   const root = builder.build();
   new FactorySceneEnhancer(manifest).apply(root);
   App.execute(new AddObjectCommand(root));
+  semanticRuntime = new FactorySemanticRuntime(root);
 
   const instanceCount = (manifest.assets ?? []).reduce((sum, batch) => {
     const explicit = batch.positions?.length ?? 0;
@@ -54,6 +72,34 @@ async function generate(manifest: FactoryManifest) {
     `${manifest.pipeRacks?.length ?? 0} 组 Pipe Rack，` +
     `${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例；` +
     upgradeText + "。";
+
+  semanticStatus.value = "语义运行时已就绪。可输入 FAB_A 等 assetId 聚焦，或直接点击模型。";
+}
+
+function focusAsset() {
+  const assetId = assetIdQuery.value.trim();
+  if (!assetId || !semanticRuntime) {
+    semanticStatus.value = "请先生成园区场景并输入 assetId。";
+    return;
+  }
+
+  const object = semanticRuntime.focusAsset(assetId, true);
+  semanticStatus.value = object
+    ? `已聚焦：${assetId} (${object.name || object.type})`
+    : `未找到 assetId：${assetId}`;
+}
+
+function selectAsset() {
+  const assetId = assetIdQuery.value.trim();
+  if (!assetId || !semanticRuntime) {
+    semanticStatus.value = "请先生成园区场景并输入 assetId。";
+    return;
+  }
+
+  const object = semanticRuntime.selectAsset(assetId);
+  semanticStatus.value = object
+    ? `已选中：${assetId} (${object.name || object.type})`
+    : `未找到 assetId：${assetId}`;
 }
 
 async function manifestFromFile(file: File): Promise<FactoryManifest> {
@@ -112,7 +158,10 @@ async function loadDemo() {
   }
 }
 
-function handleClose() {}
+function handleClose() {
+  Hooks.useRemoveSignal("intersectionsDetected", handleIntersectionsDetected);
+  semanticRuntime = null;
+}
 defineExpose({ handleClose });
 </script>
 
@@ -121,7 +170,7 @@ defineExpose({ handleClose });
     <div class="intro">
       <h3>DXF / Factory Manifest → Astral3D Scene</h3>
       <p>
-        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持 L2.5 工业生成、Pipe Rack、重复资产和 Asset Registry → GLB 自动升级。
+        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持 L2.5 工业生成、Pipe Rack、Asset Registry → GLB 自动升级和 assetId 语义导航。
       </p>
     </div>
 
@@ -143,15 +192,25 @@ defineExpose({ handleClose });
     <div v-if="fileName" class="file-name">{{ fileName }}</div>
     <div class="status">{{ status }}</div>
 
+    <div class="semantic-box">
+      <strong>数字孪生语义导航</strong>
+      <div class="semantic-controls">
+        <input v-model="assetIdQuery" placeholder="assetId，例如 FAB_A" @keyup.enter="focusAsset" />
+        <button @click="selectAsset">选中</button>
+        <button @click="focusAsset">FlyTo</button>
+      </div>
+      <div class="semantic-status">{{ semanticStatus }}</div>
+    </div>
+
     <div class="tips">
       <strong>DXF 图层约定：</strong>
       SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PIPE_RACK_CENTERLINE / PARKING / GREEN。
       <br />
       <strong>资产策略：</strong>
-      ASSETS 先同步生成 procedural fallback；Manifest 的 assetRegistry 若为资产配置 GLB URL，则场景加入后异步原位升级。GLB 加载失败不会阻断园区生成。
+      ASSETS 先同步生成 procedural fallback；Manifest 的 assetRegistry 若配置 GLB URL，则场景加入后异步原位升级。GLB 加载失败不会阻断园区生成。
       <br />
-      <strong>生成能力：</strong>
-      FAB 立面分板、Utility 百叶、Warehouse/Support 装卸口与雨棚、屋顶 HVAC/排气筒/scrubber、Pipe Rack、道路/停车标线、围栏、门区及批量园区资产。
+      <strong>交互语义：</strong>
+      普通 Mesh 沿父级解析 assetId；InstancedMesh 通过 raycast instanceId 映射到 instanceAssetIds，可用于后续 IoT/EHS 数据绑定。
     </div>
   </div>
 </template>
@@ -166,8 +225,12 @@ defineExpose({ handleClose });
 .file-box input { display: none; }
 .dxf-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin-top: 14px; font-size: 13px; }
 .dxf-options label { display: grid; grid-template-columns: 1fr 76px 20px; gap: 6px; align-items: center; }
-.dxf-options input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: transparent; color: inherit; }
-.file-name, .status, .tips { margin-top: 14px; }
+.dxf-options input, .semantic-controls input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: transparent; color: inherit; }
+.file-name, .status, .tips, .semantic-box { margin-top: 14px; }
 .status { font-weight: 600; }
+.semantic-box { padding: 12px; border: 1px solid rgba(128,128,128,.2); border-radius: 7px; }
+.semantic-controls { display: grid; grid-template-columns: 1fr 70px 70px; gap: 8px; margin-top: 9px; }
+.semantic-controls button { border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: rgba(128,128,128,.08); color: inherit; cursor: pointer; }
+.semantic-status { margin-top: 8px; font-size: 12px; opacity: .78; line-height: 1.5; }
 .tips { padding: 12px; border-radius: 6px; background: rgba(128,128,128,.08); line-height: 1.6; }
 </style>
