@@ -5,6 +5,7 @@ import type { FactoryManifest } from "@/core/factory/FactoryManifest";
 import { FactorySceneBuilder } from "@/core/factory/FactorySceneBuilder";
 import { FactorySceneEnhancer } from "@/core/factory/FactorySceneEnhancer";
 import { DxfFactoryManifestParser } from "@/core/factory/DxfFactoryManifestParser";
+import { FactoryAssetRegistry } from "@/core/factory/FactoryAssetRegistry";
 import { FactoryAssetUpgradeService } from "@/core/factory/FactoryAssetUpgradeService";
 
 const fileName = ref("");
@@ -16,6 +17,8 @@ const dxfPipeRackWidth = ref(6);
 const dxfPipeRackHeight = ref(6.5);
 
 async function generate(manifest: FactoryManifest) {
+  new FactoryAssetRegistry(manifest).applyFallbackTemplates();
+
   const builder = new FactorySceneBuilder(manifest, {
     rootName: manifest.meta?.name ?? "FACTORY_GENERATED",
   });
