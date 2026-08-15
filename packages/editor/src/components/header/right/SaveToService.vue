@@ -7,10 +7,46 @@
 	import { fetchUpload } from "@/http/api/sys";
 	import { filterSize } from "@/utils/common/file";
 	import { fetchUpdateScene } from "@/http/api/scenes";
+	import { isStandaloneMode, standaloneEditorStore } from "@/http/standalone";
 	import { Service } from "~/network";
 	import { DefaultScreenshot } from "@/utils/common/constant";
 
 	const globalConfigStore = useGlobalConfigStore();
+
+	async function saveStandalone(sceneInfo: ISceneFetchData) {
+		globalConfigStore.loadingText = window.$t("scene['Generate scene data, please wait']");
+		globalConfigStore.loading = true;
+
+		try {
+			App.project.setKey("sceneInfo.sceneVersion", sceneInfo.sceneVersion + 1);
+			const currentSceneInfo = App.project.getKey("sceneInfo") as ISceneFetchData;
+
+			if (!currentSceneInfo.coverPicture || currentSceneInfo.coverPicture === DefaultScreenshot) {
+				const image = (await window.viewer.getViewportImage()) as HTMLImageElement;
+				currentSceneInfo.coverPicture = image.src;
+				App.project.setKey("sceneInfo.coverPicture", image.src);
+			}
+
+			globalConfigStore.loadingText = window.$t("scene['Scene is being compressed...']");
+			const sceneJson = App.toJSON() as unknown as ISceneJson;
+			const updated = await standaloneEditorStore.saveScene(
+				currentSceneInfo.id,
+				currentSceneInfo,
+				sceneJson,
+			);
+
+			App.project.setKey("sceneInfo", updated);
+			globalConfigStore.loadingText = window.$t("prompt.Saved successfully!");
+			window.$message?.success(window.$t("prompt.Saved successfully!"));
+		} catch (error) {
+			console.error("[Standalone] Failed to save scene", error);
+			window.$message?.error(window.$t("scene['Failed to save project!']"));
+		} finally {
+			setTimeout(() => {
+				globalConfigStore.loading = false;
+			}, 300);
+		}
+	}
 
 	function save() {
 		const sceneInfo = App.project.getKey("sceneInfo");
@@ -27,6 +63,11 @@
 			positiveText: window.$t("other.Ok"),
 			negativeText: window.$t("other.Cancel"),
 			onPositiveClick: async () => {
+				if (isStandaloneMode) {
+					await saveStandalone(sceneInfo as ISceneFetchData);
+					return;
+				}
+
 				globalConfigStore.loadingText = window.$t("scene['Generate scene data, please wait']");
 				globalConfigStore.loading = true;
 
@@ -60,11 +101,8 @@
 				globalConfigStore.loadingText = window.$t("scene['Scene is being compressed...']");
 
 				window.viewer.package.pack({
-					// 首包名称
 					name: `${sceneInfo.sceneName}`,
-					// 拆分的最深层级 0:拆分至最深层
 					layer: 2,
-					// 压缩包上传接口函数，多压缩包
 					zipUploadFun: async (zipFile: File) => {
 						const res = await fetchUpload({
 							file: zipFile,
@@ -76,11 +114,9 @@
 						}
 						return res.data;
 					},
-					// 打包进度回调
 					onProgress: (progress: number) => {
 						globalConfigStore.loadingText = progress + "%";
 					},
-					// 打包完成回调
 					onComplete: (data: { firstUploadResult: any; totalSize: number; totalZipNumber: number }) => {
 						const params = Object.assign(sceneInfo, {
 							zip: data.firstUploadResult,
