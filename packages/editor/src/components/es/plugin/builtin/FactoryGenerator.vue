@@ -5,6 +5,9 @@ import type { FactoryManifest } from "@/core/factory/FactoryManifest";
 import { FactorySceneBuilder } from "@/core/factory/FactorySceneBuilder";
 import { FactorySceneEnhancer } from "@/core/factory/FactorySceneEnhancer";
 import { DxfFactoryManifestParser } from "@/core/factory/DxfFactoryManifestParser";
+import { normalizeDxfManifestToMeters } from "@/core/factory/DxfUnitNormalization";
+import { normalizeFactoryManifestCoordinates } from "@/core/factory/FactoryManifestNormalizer";
+import { FactoryCameraRuntime } from "@/core/factory/FactoryCameraRuntime";
 import { FactoryAssetRegistry } from "@/core/factory/FactoryAssetRegistry";
 import { FactoryAssetUpgradeService } from "@/core/factory/FactoryAssetUpgradeService";
 import { FactorySemanticRuntime } from "@/core/factory/FactorySemanticRuntime";
@@ -20,8 +23,10 @@ const dxfPipeRackWidth = ref(6);
 const dxfPipeRackHeight = ref(6.5);
 const assetIdQuery = ref("FAB_A");
 const semanticStatus = ref("生成场景后，可输入 assetId 聚焦，或直接点击园区对象查看语义。");
+const importAuditNote = ref("");
 let semanticRuntime: FactorySemanticRuntime | null = null;
 let alarmRuntime: FactoryAlarmRuntime | null = null;
+let cameraRuntime: FactoryCameraRuntime | null = null;
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -56,6 +61,7 @@ function handleIntersectionsDetected(intersections: any[]) {
 Hooks.useAddSignal("intersectionsDetected", handleIntersectionsDetected);
 
 async function generate(manifest: FactoryManifest) {
+  const coordinateAudit = runStage("Coordinate Normalize", () => normalizeFactoryManifestCoordinates(manifest));
   runStage("Asset Registry", () => new FactoryAssetRegistry(manifest).applyFallbackTemplates());
 
   const builder = new FactorySceneBuilder(manifest, { rootName: manifest.meta?.name ?? "FACTORY_GENERATED" });
@@ -73,7 +79,10 @@ async function generate(manifest: FactoryManifest) {
   runStage("Semantic / EHS Runtime", () => {
     semanticRuntime = new FactorySemanticRuntime(root);
     alarmRuntime = new FactoryAlarmRuntime(root, semanticRuntime);
+    cameraRuntime = new FactoryCameraRuntime(root);
   });
+
+  const overview = runStage("Camera Framing", () => cameraRuntime!.frameOverview(true));
 
   const instanceCount = (manifest.assets ?? []).reduce((sum, batch) => {
     const explicit = batch.positions?.length ?? 0;
@@ -90,8 +99,17 @@ async function generate(manifest: FactoryManifest) {
     ? `GLB 升级 ${upgrade.upgraded}/${upgrade.requested}` + (upgrade.failed.length ? `，${upgrade.failed.length} 个加载失败已保留 fallback` : "")
     : "当前使用 procedural / registry fallback";
 
-  status.value = `生成完成：${manifest.buildings?.length ?? 0} 栋建筑，${manifest.roads?.length ?? 0} 组道路，${manifest.pipeRacks?.length ?? 0} 组 Pipe Rack，${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例；${upgradeText}。`;
-  semanticStatus.value = "语义与 EHS 运行时已就绪。可输入 FAB_A 等 assetId 聚焦、点击模型或模拟报警。";
+  const dimensions = `${overview.width.toFixed(1)}m × ${overview.depth.toFixed(1)}m × ${overview.height.toFixed(1)}m`;
+  const coordinateText = coordinateAudit.rebased
+    ? `坐标已以 (${coordinateAudit.origin.x.toFixed(2)}, ${coordinateAudit.origin.y.toFixed(2)}) 为源平面中心重定位到本地坐标`
+    : "坐标已处于本地原点附近";
+  const auditWarning = coordinateAudit.warning ? ` ⚠ ${coordinateAudit.warning}` : "";
+  const unitText = importAuditNote.value ? `${importAuditNote.value} ` : "";
+
+  status.value = `${unitText}生成完成：场景包围盒 ${dimensions}；${coordinateText}。${manifest.buildings?.length ?? 0} 栋建筑，${manifest.roads?.length ?? 0} 组道路，${manifest.pipeRacks?.length ?? 0} 组 Pipe Rack，${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例；${upgradeText}。${auditWarning}`;
+  semanticStatus.value = overview.framed
+    ? "语义与 EHS 运行时已就绪；已自动切到整厂鸟瞰 framing。可输入 FAB_A 等 assetId 聚焦、点击模型或模拟报警。"
+    : "语义与 EHS 运行时已就绪；当前 Viewer 尚未提供可用 CameraControls，可手动调整视角后继续语义测试。";
 }
 
 function focusAsset() {
@@ -106,6 +124,14 @@ function selectAsset() {
   if (!assetId || !semanticRuntime) { semanticStatus.value = "请先生成园区场景并输入 assetId。"; return; }
   const object = semanticRuntime.selectAsset(assetId);
   semanticStatus.value = object ? `已选中：${assetId} (${object.name || object.type})` : `未找到 assetId：${assetId}`;
+}
+
+function overviewFactory() {
+  if (!cameraRuntime) { semanticStatus.value = "请先生成园区场景。"; return; }
+  const result = cameraRuntime.frameOverview(true);
+  semanticStatus.value = result.framed
+    ? `已恢复整厂鸟瞰：${result.width.toFixed(1)}m × ${result.depth.toFixed(1)}m × ${result.height.toFixed(1)}m`
+    : "当前 Viewer 尚未提供可用 CameraControls。";
 }
 
 function simulateAlarm() {
@@ -132,8 +158,16 @@ async function manifestFromFile(file: File): Promise<FactoryManifest> {
       defaultPipeRackWidth: dxfPipeRackWidth.value,
       defaultPipeRackHeight: dxfPipeRackHeight.value,
     });
-    return runStage("DXF Parse", () => parser.parse(source));
+    const manifest = runStage("DXF Parse", () => parser.parse(source));
+    const unitAudit = runStage("DXF Unit Normalize", () =>
+      normalizeDxfManifestToMeters(manifest, source, {
+        defaultRoadWidth: dxfRoadWidth.value,
+      }),
+    );
+    importAuditNote.value = unitAudit.note;
+    return manifest;
   }
+  importAuditNote.value = "";
   return runStage("Manifest JSON Parse", () => JSON.parse(source) as FactoryManifest);
 }
 
@@ -143,7 +177,7 @@ async function handleInput(event: Event) {
   if (!file) return;
   fileName.value = file.name;
   busy.value = true;
-  status.value = file.name.toLowerCase().endsWith(".dxf") ? "正在解析 DXF 图层并生成园区场景…" : "正在生成园区场景…";
+  status.value = file.name.toLowerCase().endsWith(".dxf") ? "正在解析 DXF 图层、单位和坐标并生成园区场景…" : "正在生成园区场景…";
   try {
     const manifest = await manifestFromFile(file);
     await generate(manifest);
@@ -158,6 +192,7 @@ async function handleInput(event: Event) {
 
 async function loadDemo() {
   busy.value = true;
+  importAuditNote.value = "";
   status.value = "正在读取内置半导体园区示例…";
   try {
     const response = await fetch("/static/factory/smic-beijing-concept.json");
@@ -178,6 +213,7 @@ function handleClose() {
   alarmRuntime?.dispose();
   alarmRuntime = null;
   semanticRuntime = null;
+  cameraRuntime = null;
 }
 defineExpose({ handleClose });
 </script>
@@ -193,8 +229,8 @@ defineExpose({ handleClose });
       <label>管廊高度<input v-model.number="dxfPipeRackHeight" type="number" min="1" step="0.5" /><span>m</span></label>
     </div>
     <div v-if="fileName" class="file-name">{{ fileName }}</div><div class="status">{{ status }}</div>
-    <div class="semantic-box"><strong>数字孪生语义 / EHS 测试</strong><div class="semantic-controls"><input v-model="assetIdQuery" placeholder="assetId，例如 FAB_A" @keyup.enter="focusAsset" /><button @click="selectAsset">选中</button><button @click="focusAsset">FlyTo</button></div><div class="alarm-controls"><button class="alarm-button" @click="simulateAlarm">模拟报警</button><button @click="clearAlarm">解除报警</button></div><div class="semantic-status">{{ semanticStatus }}</div></div>
-    <div class="tips"><strong>DXF 图层约定：</strong> SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PIPE_RACK_CENTERLINE / PARKING / GREEN。<br /><strong>资产策略：</strong> ASSETS 先同步生成 procedural fallback；assetRegistry 配置 GLB URL 后异步原位升级，加载失败不会阻断场景。<br /><strong>EHS 运行时：</strong> FactoryTwinStateStore 以 assetId 保存报警/状态/遥测；FactoryAlarmRuntime 将 alarm 状态映射为 FlyTo + 3D 报警标记。后续 WebSocket 只需向状态 Store 喂数据。</div>
+    <div class="semantic-box"><strong>数字孪生语义 / EHS 测试</strong><div class="semantic-controls"><input v-model="assetIdQuery" placeholder="assetId，例如 FAB_A" @keyup.enter="focusAsset" /><button @click="selectAsset">选中</button><button @click="focusAsset">FlyTo</button></div><div class="overview-controls"><button @click="overviewFactory">鸟瞰全景</button></div><div class="alarm-controls"><button class="alarm-button" @click="simulateAlarm">模拟报警</button><button @click="clearAlarm">解除报警</button></div><div class="semantic-status">{{ semanticStatus }}</div></div>
+    <div class="tips"><strong>DXF 图层约定：</strong> SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PIPE_RACK_CENTERLINE / PARKING / GREEN。<br /><strong>视觉验收：</strong> 导入时读取 DXF $INSUNITS、统一换算到米，再将源 CAD 平面中心重定位为本地坐标；生成后自动按安全 bounds 切换整厂鸟瞰，并在状态栏显示场景宽×深×高与比例异常提示。<br /><strong>坐标约定：</strong> DXF/Manifest +X → Three.js +X；DXF/Manifest +Y（North）→ Three.js -Z；Three.js +Y 为高度。<br /><strong>资产策略：</strong> ASSETS 先同步生成 procedural fallback；assetRegistry 配置 GLB URL 后异步原位升级，加载失败不会阻断场景。<br /><strong>EHS 运行时：</strong> FactoryTwinStateStore 以 assetId 保存报警/状态/遥测；FactoryAlarmRuntime 将 alarm 状态映射为 FlyTo + 3D 报警标记。后续 WebSocket 只需向状态 Store 喂数据。</div>
   </div>
 </template>
 
@@ -210,11 +246,13 @@ defineExpose({ handleClose });
 .dxf-options label { display: grid; grid-template-columns: 1fr 76px 20px; gap: 6px; align-items: center; }
 .dxf-options input, .semantic-controls input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: transparent; color: inherit; }
 .file-name, .status, .tips, .semantic-box { margin-top: 14px; }
-.status { font-weight: 600; }
+.status { font-weight: 600; line-height: 1.55; }
 .semantic-box { padding: 12px; border: 1px solid rgba(128,128,128,.2); border-radius: 7px; }
 .semantic-controls { display: grid; grid-template-columns: 1fr 70px 70px; gap: 8px; margin-top: 9px; }
+.overview-controls { margin-top: 8px; }
+.overview-controls button { width: 100%; }
 .alarm-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-.semantic-controls button, .alarm-controls button { min-height: 32px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: rgba(128,128,128,.08); color: inherit; cursor: pointer; }
+.semantic-controls button, .overview-controls button, .alarm-controls button { min-height: 32px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: rgba(128,128,128,.08); color: inherit; cursor: pointer; }
 .alarm-controls .alarm-button { border-color: rgba(220,60,60,.55); background: rgba(220,60,60,.12); }
 .semantic-status { margin-top: 8px; font-size: 12px; opacity: .78; line-height: 1.5; }
 .tips { padding: 12px; border-radius: 6px; background: rgba(128,128,128,.08); line-height: 1.6; }
