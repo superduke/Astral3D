@@ -51,6 +51,14 @@ export interface FactoryBuilding {
     template?: string;
     windowBand?: boolean;
     panelWidth?: number;
+    /** Vertical facade seam modules; enabled by default for FAB. */
+    panelJoints?: boolean;
+    /** Number of louver bands; Utility defaults to 2. */
+    louverBands?: number;
+    /** Auto-place loading doors on the longest facade edge. */
+    loadingBayCount?: number;
+    /** Whether loading bays receive a projecting canopy. */
+    canopy?: boolean;
   };
 
   roof?: {
@@ -76,6 +84,22 @@ export interface FactoryParking {
   w: number;
   h: number;
   label?: string;
+}
+
+export interface FactoryPipeRack {
+  id: string;
+  label?: string;
+  /** Site-plan route in meters. */
+  path: Array<[number, number]>;
+  width?: number;
+  height?: number;
+  /** Spacing between structural frames. */
+  columnSpacing?: number;
+  /** Number of horizontal structural tiers. */
+  tiers?: number;
+  /** Number of simplified process/utility pipes on the top tier. */
+  pipeCount?: number;
+  userData?: Record<string, unknown>;
 }
 
 export interface FactoryAssetPosition {
@@ -134,5 +158,6 @@ export interface FactoryManifest {
   roads?: FactoryRoad[];
   parking?: FactoryParking[];
   greenAreas?: Point2[][];
+  pipeRacks?: FactoryPipeRack[];
   assets?: FactoryAssetBatch[];
 }
