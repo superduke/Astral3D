@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { App } from "@astral3d/engine";
+import { computeFactoryObjectBounds } from "./FactorySafeBounds";
 
 export interface FactorySemanticHit {
   assetId?: string;
@@ -60,8 +61,13 @@ export class FactorySemanticRuntime {
       if (object.isInstancedMesh && Array.isArray(instanceIds)) {
         const instanceId = instanceIds.indexOf(assetId);
         if (instanceId >= 0) {
+          const mesh = object as THREE.InstancedMesh;
+          if (typeof mesh.getMatrixAt !== "function") {
+            console.warn(`[FactorySemanticRuntime] InstancedMesh prototype is incomplete: ${object.name}`);
+            return;
+          }
           const matrix = new THREE.Matrix4();
-          (object as THREE.InstancedMesh).getMatrixAt(instanceId, matrix);
+          mesh.getMatrixAt(instanceId, matrix);
           matrix.premultiply(object.matrixWorld);
           const position = new THREE.Vector3().setFromMatrixPosition(matrix);
           anchor = { object, position, instanceId };
@@ -70,7 +76,7 @@ export class FactorySemanticRuntime {
       }
 
       if (object.userData?.assetId === assetId) {
-        const box = new THREE.Box3().setFromObject(object);
+        const box = computeFactoryObjectBounds(object);
         const position = box.isEmpty()
           ? object.getWorldPosition(new THREE.Vector3())
           : box.getCenter(new THREE.Vector3()).setY(box.max.y);
