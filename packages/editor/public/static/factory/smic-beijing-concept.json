@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "SMIC Beijing Concept Site Plan",
-    "version": "0.5",
+    "version": "0.6",
     "unit": "meter",
     "coordinateSystem": "LOCAL_CARTESIAN_NORTH_UP",
     "accuracy": "conceptual / visualization-grade",
@@ -83,16 +83,48 @@
       "width":5.5,"height":6,"columnSpacing":7,"tiers":2,"pipeCount":6
     }
   ],
+  "assetRegistry": [
+    {
+      "id":"semiconductor.coolingTower.A",
+      "label":"Cooling Tower A",
+      "fallbackTemplate":"cooling_tower",
+      "anchor":"center-base",
+      "userData":{"category":"facility","system":"cooling-water"}
+    },
+    {
+      "id":"semiconductor.transformer.A",
+      "label":"Transformer A",
+      "fallbackTemplate":"transformer",
+      "anchor":"center-base",
+      "userData":{"category":"electrical"}
+    },
+    {
+      "id":"campus.streetLight.A",
+      "label":"Street Light A",
+      "fallbackTemplate":"street_light",
+      "anchor":"center-base",
+      "userData":{"category":"campus"}
+    },
+    {
+      "id":"campus.tree.A",
+      "label":"Landscape Tree A",
+      "fallbackTemplate":"tree",
+      "anchor":"center-base",
+      "userData":{"category":"landscape"}
+    }
+  ],
   "assets": [
     {
       "id":"COOLING_TOWER_YARD",
       "label":"Illustrative Cooling Tower Yard",
+      "asset":"semiconductor.coolingTower.A",
       "template":"cooling_tower",
       "grid":{"origin":{"x":105,"y":460},"rows":2,"columns":3,"spacingX":18,"spacingY":18,"scale":0.9}
     },
     {
       "id":"TRANSFORMER_BANK",
       "label":"Illustrative Transformer Bank",
+      "asset":"semiconductor.transformer.A",
       "template":"transformer",
       "positions":[
         {"x":610,"y":490,"rotationDeg":90},{"x":620,"y":490,"rotationDeg":90},
@@ -101,11 +133,13 @@
     },
     {
       "id":"EAST_STREET_LIGHTS",
+      "asset":"campus.streetLight.A",
       "template":"street_light",
       "line":{"start":{"x":662,"y":80},"end":{"x":662,"y":675},"count":14,"alignToLine":true}
     },
     {
       "id":"LANDSCAPE_TREES",
+      "asset":"campus.tree.A",
       "template":"tree",
       "positions":[
         {"x":60,"y":90,"scale":1.1},{"x":60,"y":130},{"x":60,"y":185,"scale":1.2},
