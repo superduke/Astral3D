@@ -31,7 +31,7 @@ export class FactoryVisualTuner {
     this.tuneCampusMarkings(root);
     this.tunePipeRacks(root);
 
-    root.userData.visualAuditStage = "overview-readability-0.1";
+    root.userData.visualAuditStage = "overview-readability-0.2";
     return root;
   }
 
@@ -53,7 +53,9 @@ export class FactoryVisualTuner {
     const surface = new THREE.Mesh(
       geometry,
       new THREE.MeshStandardMaterial({
-        color: 0x3b454e,
+        // Keep the site visibly separate from Astral3D's viewport background,
+        // while leaving enough luminance headroom for roads and buildings.
+        color: 0x46545e,
         roughness: 0.98,
         metalness: 0,
         side: THREE.DoubleSide,
@@ -76,7 +78,7 @@ export class FactoryVisualTuner {
     const boundary = root.getObjectByName("SITE_BOUNDARY") as THREE.Line | undefined;
     const material = boundary?.material as ColorMaterial | undefined;
     if (material?.color) {
-      material.color.setHex(0x8195a2);
+      material.color.setHex(0x8ea2ae);
       material.needsUpdate = true;
     }
   }
@@ -85,13 +87,16 @@ export class FactoryVisualTuner {
     const buildings = root.getObjectByName("BUILDINGS");
     if (!buildings) return;
 
+    // Low-saturation industrial palette. Differences are deliberately modest:
+    // enough to distinguish building categories in Top/overview views without
+    // competing with future EHS/alarm colors or GLB materials.
     const palette: Record<string, number> = {
-      fab: 0xd8e1e6,
-      utility: 0x9daab3,
-      warehouse: 0xb8b3aa,
-      office: 0x8ea6b5,
-      support: 0xaab6bc,
-      building: 0xc4cdd2,
+      fab: 0xdfe6ea,
+      utility: 0x98a7b2,
+      warehouse: 0xb9b1a6,
+      office: 0x8ca5b6,
+      support: 0xa8b5bc,
+      building: 0xc6ced3,
     };
 
     for (const building of buildings.children) {
@@ -111,7 +116,7 @@ export class FactoryVisualTuner {
 
         if (object.name.includes("WINDOW_BAND")) {
           this.tuneMaterial(object, {
-            color: 0x496c80,
+            color: 0x43697f,
             roughness: 0.3,
             metalness: 0.12,
           });
@@ -120,7 +125,7 @@ export class FactoryVisualTuner {
 
         if (object.name.includes("PARAPET")) {
           this.tuneMaterial(object, {
-            color: 0xc2cbd0,
+            color: 0xc5ced3,
             roughness: 0.78,
             metalness: 0.02,
           });
@@ -134,7 +139,8 @@ export class FactoryVisualTuner {
     roads?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
-        color: 0x2f373f,
+        // Roads should be the darkest major plan element in overview mode.
+        color: 0x282f36,
         roughness: 0.97,
         metalness: 0,
       });
@@ -144,7 +150,8 @@ export class FactoryVisualTuner {
     parking?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
-        color: 0x48535c,
+        // Parking is intentionally between SITE and ROAD in luminance.
+        color: 0x3e4952,
         roughness: 0.96,
         metalness: 0,
       });
@@ -154,7 +161,7 @@ export class FactoryVisualTuner {
     green?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
-        color: 0x55775a,
+        color: 0x5e845f,
         roughness: 1,
         metalness: 0,
       });
@@ -169,10 +176,10 @@ export class FactoryVisualTuner {
     roadMarkings?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       if (object.name.includes("CENTER_DASH")) {
-        this.tuneMaterial(object, { color: 0xf0c85c });
+        this.tuneMaterial(object, { color: 0xf2c55b });
         object.renderOrder = 3;
       } else if (object.name.includes("EDGE_")) {
-        this.tuneMaterial(object, { color: 0xf0f3f4 });
+        this.tuneMaterial(object, { color: 0xf2f5f7 });
         object.renderOrder = 3;
       }
     });
@@ -180,7 +187,7 @@ export class FactoryVisualTuner {
     const parkingSlots = details.getObjectByName("PARKING_SLOTS");
     parkingSlots?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
-      this.tuneMaterial(object, { color: 0xf4f6f7 });
+      this.tuneMaterial(object, { color: 0xf7f9fa });
       object.renderOrder = 3;
     });
   }
@@ -192,13 +199,13 @@ export class FactoryVisualTuner {
       const type = String(object.userData?.assetType ?? "");
       if (type === "utility_pipe") {
         this.tuneMaterial(object, {
-          color: 0xa9bbc3,
+          color: 0xb1c2ca,
           roughness: 0.38,
           metalness: 0.5,
         });
       } else if (type.startsWith("pipe_rack_")) {
         this.tuneMaterial(object, {
-          color: 0x59666e,
+          color: 0x535f67,
           roughness: 0.52,
           metalness: 0.42,
         });
