@@ -1,11 +1,11 @@
 {
   "meta": {
     "name": "SMIC Beijing Concept Site Plan",
-    "version": "0.3",
+    "version": "0.4",
     "unit": "meter",
     "coordinateSystem": "LOCAL_CARTESIAN_NORTH_UP",
     "accuracy": "conceptual / visualization-grade",
-    "disclaimer": "Approximate exterior massing for digital-twin visualization; not survey/as-built data. Repeated facility assets are illustrative rather than surveyed equipment locations."
+    "disclaimer": "Approximate exterior massing for digital-twin visualization; not survey/as-built data. Facility equipment and pipe-rack routes are illustrative rather than surveyed locations."
   },
   "siteBoundary": [
     {"x":0,"y":35},{"x":45,"y":0},{"x":655,"y":0},{"x":715,"y":55},
@@ -18,14 +18,14 @@
         {"x":350,"y":540},{"x":575,"y":540},{"x":575,"y":665},
         {"x":520,"y":665},{"x":520,"y":650},{"x":350,"y":650}
       ],
-      "facade":{"windowBand":true},
+      "facade":{"windowBand":true,"panelJoints":true,"panelWidth":6},
       "roof":{"parapet":true,"hvacCount":12,"exhaustCount":8,"scrubberCount":2}
     },
-    {"id":"FAB_B","label":"FAB-B","type":"fab","x":350,"y":390,"w":225,"h":125,"z":28,"facade":{"windowBand":true},"roof":{"parapet":true,"hvacCount":12,"exhaustCount":8}},
-    {"id":"UTILITY_N","label":"UTILITY-N","type":"utility","x":85,"y":505,"w":190,"h":105,"z":18,"roof":{"parapet":true,"hvacCount":8,"exhaustCount":3}},
-    {"id":"SUPPORT_N","label":"SUPPORT-N","type":"support","x":95,"y":365,"w":155,"h":80,"z":15},
+    {"id":"FAB_B","label":"FAB-B","type":"fab","x":350,"y":390,"w":225,"h":125,"z":28,"facade":{"windowBand":true,"panelJoints":true,"panelWidth":6},"roof":{"parapet":true,"hvacCount":12,"exhaustCount":8}},
+    {"id":"UTILITY_N","label":"UTILITY-N","type":"utility","x":85,"y":505,"w":190,"h":105,"z":18,"facade":{"louverBands":2},"roof":{"parapet":true,"hvacCount":8,"exhaustCount":3}},
+    {"id":"SUPPORT_N","label":"SUPPORT-N","type":"support","x":95,"y":365,"w":155,"h":80,"z":15,"facade":{"loadingBayCount":2,"canopy":true}},
     {"id":"ADMIN_N","label":"ADMIN","type":"office","x":585,"y":565,"w":90,"h":70,"z":22,"facade":{"windowBand":true}},
-    {"id":"WAREHOUSE_N","label":"WAREHOUSE","type":"warehouse","x":85,"y":645,"w":150,"h":60,"z":12},
+    {"id":"WAREHOUSE_N","label":"WAREHOUSE","type":"warehouse","x":85,"y":645,"w":150,"h":60,"z":12,"facade":{"loadingBayCount":4,"canopy":true}},
     {
       "id":"RND","label":"R&D / OFFICE","type":"office","z":34,
       "footprint":[
@@ -34,11 +34,11 @@
       ],
       "facade":{"windowBand":true}
     },
-    {"id":"SERVICE_C","label":"SERVICE","type":"support","x":95,"y":275,"w":165,"h":70,"z":13},
-    {"id":"FAB_C","label":"FAB-C","type":"fab","x":325,"y":105,"w":185,"h":130,"z":26,"facade":{"windowBand":true},"roof":{"parapet":true,"hvacCount":10,"exhaustCount":6}},
-    {"id":"FAB_D","label":"FAB-D","type":"fab","x":525,"y":105,"w":155,"h":130,"z":26,"facade":{"windowBand":true},"roof":{"parapet":true,"hvacCount":10,"exhaustCount":6}},
-    {"id":"UTILITY_S","label":"UTILITY-S","type":"utility","x":80,"y":145,"w":190,"h":82,"z":16,"roof":{"parapet":true,"hvacCount":6,"exhaustCount":2}},
-    {"id":"SUPPORT_S","label":"SUPPORT-S","type":"support","x":80,"y":65,"w":190,"h":58,"z":11}
+    {"id":"SERVICE_C","label":"SERVICE","type":"support","x":95,"y":275,"w":165,"h":70,"z":13,"facade":{"loadingBayCount":2,"canopy":true}},
+    {"id":"FAB_C","label":"FAB-C","type":"fab","x":325,"y":105,"w":185,"h":130,"z":26,"facade":{"windowBand":true,"panelJoints":true,"panelWidth":6},"roof":{"parapet":true,"hvacCount":10,"exhaustCount":6}},
+    {"id":"FAB_D","label":"FAB-D","type":"fab","x":525,"y":105,"w":155,"h":130,"z":26,"facade":{"windowBand":true,"panelJoints":true,"panelWidth":6},"roof":{"parapet":true,"hvacCount":10,"exhaustCount":6}},
+    {"id":"UTILITY_S","label":"UTILITY-S","type":"utility","x":80,"y":145,"w":190,"h":82,"z":16,"facade":{"louverBands":2},"roof":{"parapet":true,"hvacCount":6,"exhaustCount":2}},
+    {"id":"SUPPORT_S","label":"SUPPORT-S","type":"support","x":80,"y":65,"w":190,"h":58,"z":11,"facade":{"loadingBayCount":3,"canopy":true}}
   ],
   "roads": [
     {"id":"R_EAST","points":[[680,45],[680,710]],"width":14},
@@ -57,6 +57,20 @@
     [{"x":695,"y":95},{"x":695,"y":500},{"x":705,"y":500},{"x":705,"y":95}],
     [{"x":275,"y":555},{"x":320,"y":555},{"x":320,"y":690},{"x":275,"y":690}],
     [{"x":280,"y":55},{"x":305,"y":55},{"x":305,"y":235},{"x":280,"y":235}]
+  ],
+  "pipeRacks": [
+    {
+      "id":"PR_NORTH_01",
+      "label":"Illustrative North Utility Rack",
+      "path":[[275,485],[320,485],[320,525],[350,525]],
+      "width":6,"height":7,"columnSpacing":8,"tiers":2,"pipeCount":7
+    },
+    {
+      "id":"PR_SOUTH_01",
+      "label":"Illustrative South Utility Rack",
+      "path":[[270,185],[310,185],[310,245],[390,245]],
+      "width":5.5,"height":6,"columnSpacing":7,"tiers":2,"pipeCount":6
+    }
   ],
   "assets": [
     {
