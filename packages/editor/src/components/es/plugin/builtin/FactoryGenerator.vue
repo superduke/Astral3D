@@ -14,7 +14,18 @@ async function generate(manifest: FactoryManifest) {
   });
   const root = builder.build();
   App.execute(new AddObjectCommand(root));
-  status.value = `生成完成：${manifest.buildings?.length ?? 0} 栋建筑，${manifest.roads?.length ?? 0} 组道路。`;
+
+  const instanceCount = (manifest.assets ?? []).reduce((sum, batch) => {
+    const explicit = batch.positions?.length ?? 0;
+    const grid = batch.grid ? batch.grid.rows * batch.grid.columns : 0;
+    const line = batch.line?.count ?? 0;
+    return sum + explicit + grid + line;
+  }, 0);
+
+  status.value =
+    `生成完成：${manifest.buildings?.length ?? 0} 栋建筑，` +
+    `${manifest.roads?.length ?? 0} 组道路，` +
+    `${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例。`;
 }
 
 async function handleInput(event: Event) {
@@ -42,7 +53,7 @@ async function loadDemo() {
   try {
     const response = await fetch("/static/factory/smic-beijing-concept.json");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const manifest = await response.json() as FactoryManifest;
+    const manifest = (await response.json()) as FactoryManifest;
     fileName.value = "smic-beijing-concept.json";
     await generate(manifest);
   } catch (error) {
@@ -61,7 +72,9 @@ defineExpose({ handleClose });
   <div class="factory-generator">
     <div class="intro">
       <h3>Factory Manifest → Astral3D Scene</h3>
-      <p>从结构化总平数据生成可编辑的半导体园区场景。当前版本已经包含第一阶段 L2 建筑外观。</p>
+      <p>
+        从结构化总平数据生成可编辑的半导体园区场景。当前版本支持 CAD/DXF 风格多边形建筑轮廓和 InstancedMesh 重复资产。
+      </p>
     </div>
 
     <div class="actions">
@@ -77,7 +90,8 @@ defineExpose({ handleClose });
 
     <div class="tips">
       <strong>当前生成能力：</strong>
-      SITE / BUILDINGS / ROADS / PARKING / GREEN；FAB/Utility 自动增加女儿墙、窗带和简化屋顶机组，并写入 assetId / assetType / dimensions 语义。
+      SITE / BUILDINGS / ROADS / PARKING / GREEN / ASSETS；建筑支持 rectangle 与 polygon footprint；
+      FAB/Utility 屋顶可实例化生成 HVAC、排气筒和 scrubber；园区支持 cooling tower、transformer、street light、tree 批量实例。
     </div>
   </div>
 </template>
