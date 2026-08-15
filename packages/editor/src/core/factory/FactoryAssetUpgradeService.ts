@@ -8,6 +8,10 @@ import type {
 import { AssetPlacer } from "./AssetPlacer";
 import { FactoryAssetRegistry } from "./FactoryAssetRegistry";
 import { FactoryGlbBatchFactory } from "./FactoryGlbBatchFactory";
+import {
+  inspectFactoryGlbRuntime,
+  type FactoryGlbRuntimeDiagnosticReport,
+} from "./FactoryGlbRuntimeDiagnostics";
 import { FactoryGlbTemplateCache } from "./FactoryGlbTemplateCache";
 import { prepareFactoryObjectForAstral } from "./FactoryAstralCompat";
 import {
@@ -20,6 +24,7 @@ export interface FactoryAssetUpgradeSummary {
   upgraded: number;
   skipped: number;
   failed: Array<{ batchId: string; assetId?: string; reason: string }>;
+  diagnostics?: FactoryGlbRuntimeDiagnosticReport;
 }
 
 export class FactoryAssetUpgradeService {
@@ -71,11 +76,19 @@ export class FactoryAssetUpgradeService {
 
     await this.upgradeEmbeddedRoofAssets(root, summary);
 
+    summary.diagnostics = inspectFactoryGlbRuntime(root);
     root.userData.assetUpgrade = {
       requested: summary.requested,
       upgraded: summary.upgraded,
       skipped: summary.skipped,
       failed: summary.failed.length,
+      glbBatches: summary.diagnostics.glbBatches,
+      instancedBatches: summary.diagnostics.instancedBatches,
+      sharedCloneBatches: summary.diagnostics.sharedCloneBatches,
+      instancedMeshParts: summary.diagnostics.instancedMeshParts,
+      semanticInstances: summary.diagnostics.semanticInstances,
+      estimatedDrawCalls: summary.diagnostics.estimatedDrawCalls,
+      semanticMappingValid: summary.diagnostics.semanticMappingValid,
     };
 
     return summary;
