@@ -7,6 +7,13 @@ export interface AssetInstanceTransform {
   scale?: THREE.Vector3;
 }
 
+export interface StoredAssetInstanceTransform {
+  id: string;
+  position: [number, number, number];
+  rotationY: number;
+  scale: [number, number, number];
+}
+
 interface ProceduralAssetPart {
   name: string;
   geometry: THREE.BufferGeometry;
@@ -156,6 +163,48 @@ function getTemplate(template: string): ProceduralAssetPart[] {
   return parts;
 }
 
+export function storeAssetInstanceTransforms(
+  transforms: AssetInstanceTransform[],
+): StoredAssetInstanceTransform[] {
+  return transforms.map((item) => ({
+    id: item.id,
+    position: [item.position.x, item.position.y, item.position.z],
+    rotationY: item.rotationY ?? 0,
+    scale: [item.scale?.x ?? 1, item.scale?.y ?? 1, item.scale?.z ?? 1],
+  }));
+}
+
+export function restoreAssetInstanceTransforms(
+  value: unknown,
+): AssetInstanceTransform[] {
+  if (!Array.isArray(value)) return [];
+  const result: AssetInstanceTransform[] = [];
+  for (const raw of value) {
+    const item = raw as Partial<StoredAssetInstanceTransform>;
+    if (
+      typeof item.id !== "string" ||
+      !Array.isArray(item.position) ||
+      item.position.length !== 3 ||
+      !item.position.every(Number.isFinite)
+    ) {
+      continue;
+    }
+    const scale =
+      Array.isArray(item.scale) &&
+      item.scale.length === 3 &&
+      item.scale.every(Number.isFinite)
+        ? item.scale
+        : [1, 1, 1];
+    result.push({
+      id: item.id,
+      position: new THREE.Vector3(...item.position),
+      rotationY: Number.isFinite(item.rotationY) ? item.rotationY : 0,
+      scale: new THREE.Vector3(scale[0], scale[1], scale[2]),
+    });
+  }
+  return result;
+}
+
 export function createInstancedAssetGroup(
   id: string,
   template: string,
@@ -169,6 +218,7 @@ export function createInstancedAssetGroup(
     assetType: template,
     instanced: true,
     instanceCount: transforms.length,
+    factoryInstanceTransforms: storeAssetInstanceTransforms(transforms),
     ...userData,
   };
 
