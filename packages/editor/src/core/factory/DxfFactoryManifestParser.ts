@@ -32,6 +32,14 @@ interface DxfEntityLike {
   shape?: boolean;
   width?: number;
   vertices?: DxfPointLike[];
+  text?: string;
+  startPoint?: DxfPointLike;
+  endPoint?: DxfPointLike;
+}
+
+interface DxfTextLabel {
+  text: string;
+  position: Point2;
 }
 
 const DEFAULT_LAYER_MAP = {
@@ -73,12 +81,24 @@ export class DxfFactoryManifestParser {
     const roads: FactoryRoad[] = [];
     const parking: FactoryParking[] = [];
     const greenAreas: Point2[][] = [];
+    const textLabels: DxfTextLabel[] = [];
 
     let buildingIndex = 0;
     let roadIndex = 0;
     let parkingIndex = 0;
 
     for (const entity of dxf.entities) {
+      if (entity.type === "TEXT" && entity.text?.trim()) {
+        const position = entity.startPoint ?? entity.endPoint;
+        if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
+          textLabels.push({
+            text: entity.text.trim(),
+            position: { x: position.x, y: position.y },
+          });
+        }
+        continue;
+      }
+
       const layer = (entity.layer ?? "").toUpperCase();
       const points = this.entityPoints(entity);
       if (points.length < 2) continue;
@@ -132,12 +152,13 @@ export class DxfFactoryManifestParser {
       }
     }
 
+    this.applyBuildingLabels(buildings, textLabels);
     const siteBoundary = this.pickLargestPolygon(siteBoundaries);
 
     return {
       meta: {
         name: this.options.name,
-        version: "dxf-import-0.1",
+        version: "dxf-import-0.2",
         unit: "meter",
         coordinateSystem: "LOCAL_CARTESIAN_NORTH_UP",
         accuracy: "derived from DXF entities",
@@ -151,13 +172,95 @@ export class DxfFactoryManifestParser {
   }
 
   private entityPoints(entity: DxfEntityLike): Point2[] {
-    if (entity.type !== "LWPOLYLINE" && entity.type !== "POLYLINE" && entity.type !== "LINE") {
+    if (
+      entity.type !== "LWPOLYLINE" &&
+      entity.type !== "POLYLINE" &&
+      entity.type !== "LINE"
+    ) {
       return [];
     }
 
     return (entity.vertices ?? [])
       .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
       .map((point) => ({ x: point.x, y: point.y }));
+  }
+
+  private applyBuildingLabels(
+    buildings: FactoryBuilding[],
+    labels: DxfTextLabel[],
+  ): void {
+    const usedIds = new Set<string>();
+
+    buildings.forEach((building, index) => {
+      const polygon = building.footprint ?? [];
+      const label = labels.find((item) => this.pointInPolygon(item.position, polygon));
+      if (!label) {
+        usedIds.add(building.id);
+        return;
+      }
+
+      const type = this.inferBuildingType(label.text);
+      let id = this.toAssetId(label.text) || `BLDG_${String(index + 1).padStart(3, "0")}`;
+      if (usedIds.has(id)) {
+        id = `${id}_${String(index + 1).padStart(2, "0")}`;
+      }
+      usedIds.add(id);
+
+      building.id = id;
+      building.label = label.text;
+      building.type = type;
+      building.facade = {
+        ...(building.facade ?? {}),
+        windowBand: type === "fab" || type === "office",
+      };
+      building.roof = {
+        ...(building.roof ?? {}),
+        parapet: true,
+      };
+    });
+  }
+
+  private inferBuildingType(label: string): string {
+    const value = label.toUpperCase();
+    if (value.includes("FAB")) return "fab";
+    if (value.includes("UTILITY")) return "utility";
+    if (value.includes("WAREHOUSE")) return "warehouse";
+    if (
+      value.includes("ADMIN") ||
+      value.includes("OFFICE") ||
+      value.includes("R&D") ||
+      value.includes("RND")
+    ) {
+      return "office";
+    }
+    if (value.includes("SUPPORT") || value.includes("SERVICE")) return "support";
+    return "building";
+  }
+
+  private toAssetId(label: string): string {
+    return label
+      .trim()
+      .toUpperCase()
+      .replace(/&/g, "_AND_")
+      .replace(/[^A-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 48);
+  }
+
+  private pointInPolygon(point: Point2, polygon: Point2[]): boolean {
+    if (polygon.length < 3) return false;
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x;
+      const yi = polygon[i].y;
+      const xj = polygon[j].x;
+      const yj = polygon[j].y;
+      const intersects =
+        yi > point.y !== yj > point.y &&
+        point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+      if (intersects) inside = !inside;
+    }
+    return inside;
   }
 
   private removeClosingDuplicate(points: Point2[]): Point2[] {
