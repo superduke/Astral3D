@@ -1,5 +1,41 @@
 import * as THREE from "three";
 
+function ensureGeometryBounds(
+  geometry: THREE.BufferGeometry | undefined,
+): THREE.Box3 | undefined {
+  if (!geometry || typeof geometry.computeBoundingBox !== "function") return undefined;
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  if (!geometry.boundingBox || geometry.boundingBox.isEmpty()) return undefined;
+  return geometry.boundingBox;
+}
+
+/**
+ * Computes the world-space bounds for exactly one InstancedMesh instance.
+ *
+ * The instance matrix may already contain a source GLB part transform (the
+ * FactoryGlbBatchFactory bakes each source mesh matrixWorld into setMatrixAt),
+ * so the correct world transform is object.matrixWorld * instanceMatrix.
+ */
+export function computeFactoryInstanceBounds(
+  mesh: THREE.InstancedMesh,
+  instanceId: number,
+): THREE.Box3 {
+  const result = new THREE.Box3();
+  const geometryBounds = ensureGeometryBounds(mesh.geometry);
+  if (!geometryBounds) return result;
+  if (!Number.isInteger(instanceId) || instanceId < 0 || instanceId >= mesh.count) {
+    return result;
+  }
+  if (typeof mesh.getMatrixAt !== "function") return result;
+
+  mesh.updateMatrixWorld(true);
+  const instanceMatrix = new THREE.Matrix4();
+  const worldMatrix = new THREE.Matrix4();
+  mesh.getMatrixAt(instanceId, instanceMatrix);
+  worldMatrix.multiplyMatrices(mesh.matrixWorld, instanceMatrix);
+  return result.copy(geometryBounds).applyMatrix4(worldMatrix);
+}
+
 /**
  * Computes world-space bounds without relying on Box3.setFromObject().
  *
@@ -20,10 +56,8 @@ export function computeFactoryObjectBounds(root: THREE.Object3D): THREE.Box3 {
       geometry?: THREE.BufferGeometry;
     };
     const geometry = candidate.geometry;
-    if (!geometry || typeof geometry.computeBoundingBox !== "function") return;
-
-    if (!geometry.boundingBox) geometry.computeBoundingBox();
-    if (!geometry.boundingBox) return;
+    const geometryBounds = ensureGeometryBounds(geometry);
+    if (!geometry || !geometryBounds) return;
 
     if (
       candidate.isInstancedMesh &&
@@ -38,13 +72,13 @@ export function computeFactoryObjectBounds(root: THREE.Object3D): THREE.Box3 {
       for (let index = 0; index < count; index++) {
         candidate.getMatrixAt(index, instanceMatrix);
         worldMatrix.multiplyMatrices(object.matrixWorld, instanceMatrix);
-        instanceBox.copy(geometry.boundingBox).applyMatrix4(worldMatrix);
+        instanceBox.copy(geometryBounds).applyMatrix4(worldMatrix);
         result.union(instanceBox);
       }
       return;
     }
 
-    const worldBox = geometry.boundingBox.clone().applyMatrix4(object.matrixWorld);
+    const worldBox = geometryBounds.clone().applyMatrix4(object.matrixWorld);
     result.union(worldBox);
   });
 
