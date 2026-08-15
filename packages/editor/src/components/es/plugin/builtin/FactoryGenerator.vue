@@ -8,6 +8,7 @@ import { DxfFactoryManifestParser } from "@/core/factory/DxfFactoryManifestParse
 import { FactoryAssetRegistry } from "@/core/factory/FactoryAssetRegistry";
 import { FactoryAssetUpgradeService } from "@/core/factory/FactoryAssetUpgradeService";
 import { FactorySemanticRuntime } from "@/core/factory/FactorySemanticRuntime";
+import { FactoryAlarmRuntime } from "@/core/factory/FactoryAlarmRuntime";
 
 const fileName = ref("");
 const status = ref("请选择 Factory Manifest JSON / DXF。也可以直接加载内置示例。");
@@ -19,6 +20,7 @@ const dxfPipeRackHeight = ref(6.5);
 const assetIdQuery = ref("FAB_A");
 const semanticStatus = ref("生成场景后，可输入 assetId 聚焦，或直接点击园区对象查看语义。");
 let semanticRuntime: FactorySemanticRuntime | null = null;
+let alarmRuntime: FactoryAlarmRuntime | null = null;
 
 function handleIntersectionsDetected(intersections: any[]) {
   if (!semanticRuntime || !intersections?.length) return;
@@ -42,7 +44,10 @@ async function generate(manifest: FactoryManifest) {
   const root = builder.build();
   new FactorySceneEnhancer(manifest).apply(root);
   App.execute(new AddObjectCommand(root));
+
+  alarmRuntime?.dispose();
   semanticRuntime = new FactorySemanticRuntime(root);
+  alarmRuntime = new FactoryAlarmRuntime(root, semanticRuntime);
 
   const instanceCount = (manifest.assets ?? []).reduce((sum, batch) => {
     const explicit = batch.positions?.length ?? 0;
@@ -73,7 +78,7 @@ async function generate(manifest: FactoryManifest) {
     `${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例；` +
     upgradeText + "。";
 
-  semanticStatus.value = "语义运行时已就绪。可输入 FAB_A 等 assetId 聚焦，或直接点击模型。";
+  semanticStatus.value = "语义与 EHS 运行时已就绪。可输入 FAB_A 等 assetId 聚焦、点击模型或模拟报警。";
 }
 
 function focusAsset() {
@@ -100,6 +105,30 @@ function selectAsset() {
   semanticStatus.value = object
     ? `已选中：${assetId} (${object.name || object.type})`
     : `未找到 assetId：${assetId}`;
+}
+
+function simulateAlarm() {
+  const assetId = assetIdQuery.value.trim();
+  if (!assetId || !alarmRuntime) {
+    semanticStatus.value = "请先生成园区场景并输入 assetId。";
+    return;
+  }
+
+  const ok = alarmRuntime.raise(assetId, {
+    severity: "critical",
+    message: "Factory Generator demo EHS alarm",
+    focus: true,
+  });
+  semanticStatus.value = ok
+    ? `已触发 EHS 模拟报警：${assetId}`
+    : `无法触发报警，未找到 assetId：${assetId}`;
+}
+
+function clearAlarm() {
+  const assetId = assetIdQuery.value.trim();
+  if (!assetId || !alarmRuntime) return;
+  alarmRuntime.clear(assetId);
+  semanticStatus.value = `已解除 EHS 模拟报警：${assetId}`;
 }
 
 async function manifestFromFile(file: File): Promise<FactoryManifest> {
@@ -160,6 +189,8 @@ async function loadDemo() {
 
 function handleClose() {
   Hooks.useRemoveSignal("intersectionsDetected", handleIntersectionsDetected);
+  alarmRuntime?.dispose();
+  alarmRuntime = null;
   semanticRuntime = null;
 }
 defineExpose({ handleClose });
@@ -170,7 +201,7 @@ defineExpose({ handleClose });
     <div class="intro">
       <h3>DXF / Factory Manifest → Astral3D Scene</h3>
       <p>
-        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持 L2.5 工业生成、Pipe Rack、Asset Registry → GLB 自动升级和 assetId 语义导航。
+        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持 L2.5 工业生成、GLB 自动升级、assetId 语义导航和 EHS 报警运行时。
       </p>
     </div>
 
@@ -193,11 +224,15 @@ defineExpose({ handleClose });
     <div class="status">{{ status }}</div>
 
     <div class="semantic-box">
-      <strong>数字孪生语义导航</strong>
+      <strong>数字孪生语义 / EHS 测试</strong>
       <div class="semantic-controls">
         <input v-model="assetIdQuery" placeholder="assetId，例如 FAB_A" @keyup.enter="focusAsset" />
         <button @click="selectAsset">选中</button>
         <button @click="focusAsset">FlyTo</button>
+      </div>
+      <div class="alarm-controls">
+        <button class="alarm-button" @click="simulateAlarm">模拟报警</button>
+        <button @click="clearAlarm">解除报警</button>
       </div>
       <div class="semantic-status">{{ semanticStatus }}</div>
     </div>
@@ -207,10 +242,10 @@ defineExpose({ handleClose });
       SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PIPE_RACK_CENTERLINE / PARKING / GREEN。
       <br />
       <strong>资产策略：</strong>
-      ASSETS 先同步生成 procedural fallback；Manifest 的 assetRegistry 若配置 GLB URL，则场景加入后异步原位升级。GLB 加载失败不会阻断园区生成。
+      ASSETS 先同步生成 procedural fallback；assetRegistry 配置 GLB URL 后异步原位升级，加载失败不会阻断场景。
       <br />
-      <strong>交互语义：</strong>
-      普通 Mesh 沿父级解析 assetId；InstancedMesh 通过 raycast instanceId 映射到 instanceAssetIds，可用于后续 IoT/EHS 数据绑定。
+      <strong>EHS 运行时：</strong>
+      FactoryTwinStateStore 以 assetId 保存报警/状态/遥测；FactoryAlarmRuntime 将 alarm 状态映射为 FlyTo + 3D 报警标记。后续 WebSocket 只需向状态 Store 喂数据。
     </div>
   </div>
 </template>
@@ -230,7 +265,9 @@ defineExpose({ handleClose });
 .status { font-weight: 600; }
 .semantic-box { padding: 12px; border: 1px solid rgba(128,128,128,.2); border-radius: 7px; }
 .semantic-controls { display: grid; grid-template-columns: 1fr 70px 70px; gap: 8px; margin-top: 9px; }
-.semantic-controls button { border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: rgba(128,128,128,.08); color: inherit; cursor: pointer; }
+.alarm-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.semantic-controls button, .alarm-controls button { min-height: 32px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: rgba(128,128,128,.08); color: inherit; cursor: pointer; }
+.alarm-controls .alarm-button { border-color: rgba(220,60,60,.55); background: rgba(220,60,60,.12); }
 .semantic-status { margin-top: 8px; font-size: 12px; opacity: .78; line-height: 1.5; }
 .tips { padding: 12px; border-radius: 6px; background: rgba(128,128,128,.08); line-height: 1.6; }
 </style>
