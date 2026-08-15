@@ -28,11 +28,30 @@ export class CampusDetailGenerator {
     }
 
     if (config.parkingSlots !== false) {
-      const parkingSlots = new THREE.Group();
+      const parkingSlots = new THREE.LOD();
       parkingSlots.name = "PARKING_SLOTS";
+
+      const nearDetail = new THREE.Group();
+      nearDetail.name = "PARKING_SLOTS_NEAR";
       for (const parking of manifest.parking ?? []) {
-        parkingSlots.add(this.createParkingSlots(parking));
+        nearDetail.add(this.createParkingSlots(parking));
       }
+
+      const farDetail = new THREE.Group();
+      farDetail.name = "PARKING_SLOTS_OVERVIEW";
+      farDetail.userData = {
+        assetType: "parking_slots_overview_placeholder",
+        intentionallyEmpty: true,
+      };
+
+      const detailDistance = this.resolveParkingDetailDistance(manifest);
+      parkingSlots.addLevel(nearDetail, 0);
+      parkingSlots.addLevel(farDetail, detailDistance);
+      parkingSlots.userData = {
+        assetType: "parking_slots_lod",
+        detailDistance,
+        behavior: "show detailed stall lines only at near/mid camera distance",
+      };
       group.add(parkingSlots);
     }
 
@@ -60,6 +79,17 @@ export class CampusDetailGenerator {
     return new THREE.Vector3(x, this.groundOffset + elevation, -y);
   }
 
+  private createMarkingMaterial(color: number): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      color,
+      depthTest: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+  }
+
   private createRoadMarkings(road: FactoryRoad): THREE.Group {
     const group = new THREE.Group();
     group.name = `${road.id}_MARKINGS`;
@@ -68,13 +98,15 @@ export class CampusDetailGenerator {
       parentAssetId: road.id,
     };
 
-    const white = new THREE.MeshBasicMaterial({ color: 0xf2f5f7 });
-    const yellow = new THREE.MeshBasicMaterial({ color: 0xf2c55b });
+    const white = this.createMarkingMaterial(0xf2f5f7);
+    const yellow = this.createMarkingMaterial(0xf2c55b);
     const points = road.points ?? [];
 
     for (let index = 0; index < points.length - 1; index++) {
-      const a = this.planToWorld(points[index][0], points[index][1], 0.115);
-      const b = this.planToWorld(points[index + 1][0], points[index + 1][1], 0.115);
+      // Road top is roughly +0.10 m. Keep the marking bottom slightly above it
+      // and add polygon offset so oblique overview angles do not produce z-fighting.
+      const a = this.planToWorld(points[index][0], points[index][1], 0.13);
+      const b = this.planToWorld(points[index + 1][0], points[index + 1][1], 0.13);
       const delta = b.clone().sub(a);
       const length = delta.length();
       if (length <= 0.001) continue;
@@ -86,8 +118,6 @@ export class CampusDetailGenerator {
         const offset = Math.max(0.4, halfWidth - 0.45) * side;
         const center = a.clone().lerp(b, 0.5).addScaledVector(normal, offset);
         const edge = new THREE.Mesh(
-          // 18 cm is still physically restrained at factory scale, but gives
-          // enough raster footprint to survive 700–800 m Top/overview framing.
           new THREE.BoxGeometry(0.18, 0.03, length),
           white,
         );
@@ -97,8 +127,6 @@ export class CampusDetailGenerator {
         group.add(edge);
       }
 
-      // Keep the longer visualization-grade cadence introduced for overview
-      // readability; only make the dash slightly wider so it survives AA/downscale.
       const dashLength = 5.5;
       const gap = 7.5;
       const stride = dashLength + gap;
@@ -131,11 +159,9 @@ export class CampusDetailGenerator {
       parentAssetId: item.id,
     };
 
-    const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xf7f9fa });
+    const lineMaterial = this.createMarkingMaterial(0xf7f9fa);
     const slotWidth = 2.7;
     const slotDepth = 5.3;
-    // Final overview pass: +16.7% from the previous 12 cm line, intentionally
-    // stopping well below diagram-like widths.
     const lineWidth = 0.14;
     const y = this.groundOffset + 0.105;
 
@@ -151,7 +177,11 @@ export class CampusDetailGenerator {
             new THREE.BoxGeometry(lineWidth, 0.03, Math.min(slotDepth, item.h)),
             lineMaterial,
           );
-          const center = this.planToWorld(x, startY + Math.min(slotDepth, item.h) / 2, 0.105);
+          const center = this.planToWorld(
+            x,
+            startY + Math.min(slotDepth, item.h) / 2,
+            0.105,
+          );
           line.position.set(center.x, y, center.z);
           group.add(line);
         }
@@ -168,7 +198,11 @@ export class CampusDetailGenerator {
             new THREE.BoxGeometry(Math.min(slotDepth, item.w), 0.03, lineWidth),
             lineMaterial,
           );
-          const center = this.planToWorld(startX + Math.min(slotDepth, item.w) / 2, planY, 0.105);
+          const center = this.planToWorld(
+            startX + Math.min(slotDepth, item.w) / 2,
+            planY,
+            0.105,
+          );
           line.position.set(center.x, y, center.z);
           group.add(line);
         }
@@ -176,6 +210,63 @@ export class CampusDetailGenerator {
     }
 
     return group;
+  }
+
+  private resolveParkingDetailDistance(manifest: FactoryManifest): number {
+    const span = this.estimateCampusSpan(manifest);
+    // Whole-campus bird-eye cameras for 700–800 m sites usually sit well beyond
+    // 550 m from scene origin. Hide dense stall geometry there, but restore it
+    // automatically once the user approaches the campus for inspection.
+    return Math.max(220, Math.min(700, span * 0.72));
+  }
+
+  private estimateCampusSpan(manifest: FactoryManifest): number {
+    const points: Point2[] = [];
+
+    points.push(...(manifest.siteBoundary ?? []));
+
+    for (const building of manifest.buildings ?? []) {
+      if (building.footprint?.length) {
+        points.push(...building.footprint);
+      } else if (
+        Number.isFinite(building.x) &&
+        Number.isFinite(building.y) &&
+        Number.isFinite(building.w) &&
+        Number.isFinite(building.h)
+      ) {
+        const x = building.x!;
+        const y = building.y!;
+        const w = building.w!;
+        const h = building.h!;
+        points.push(
+          { x, y },
+          { x: x + w, y },
+          { x: x + w, y: y + h },
+          { x, y: y + h },
+        );
+      }
+    }
+
+    for (const road of manifest.roads ?? []) {
+      for (const [x, y] of road.points ?? []) points.push({ x, y });
+    }
+
+    for (const parking of manifest.parking ?? []) {
+      points.push(
+        { x: parking.x, y: parking.y },
+        { x: parking.x + parking.w, y: parking.y + parking.h },
+      );
+    }
+
+    if (!points.length) return 600;
+
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    return Math.max(
+      Math.max(...xs) - Math.min(...xs),
+      Math.max(...ys) - Math.min(...ys),
+      1,
+    );
   }
 
   private createFence(
