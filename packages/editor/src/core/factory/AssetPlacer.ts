@@ -3,17 +3,49 @@ import type {
   FactoryAssetBatch,
   FactoryAssetPosition,
 } from "./FactoryManifest";
+import { FactoryAssetRegistry } from "./FactoryAssetRegistry";
 import {
   createInstancedAssetGroup,
   type AssetInstanceTransform,
 } from "./ProceduralAssetFactory";
 
 export class AssetPlacer {
-  constructor(private readonly groundOffset = 0) {}
+  constructor(
+    private readonly groundOffset = 0,
+    private readonly registry?: FactoryAssetRegistry,
+  ) {}
 
   createBatch(batch: FactoryAssetBatch): THREE.Group {
+    const transforms = this.createTransforms(batch);
+    const template =
+      this.registry?.resolveFallbackTemplate(batch) ??
+      batch.template ??
+      "placeholder";
+
+    const group = createInstancedAssetGroup(
+      batch.id,
+      template,
+      transforms,
+      {
+        label: batch.label ?? batch.id,
+        source: "factory-manifest",
+        registryAssetId: batch.asset,
+        renderSource: "procedural-fallback",
+        ...(batch.userData ?? {}),
+      },
+    );
+
+    group.userData.fallbackTemplate = template;
+    return group;
+  }
+
+  /**
+   * Public so both the procedural placer and the asynchronous GLB upgrader use
+   * exactly the same placement expansion rules.
+   */
+  createTransforms(batch: FactoryAssetBatch): AssetInstanceTransform[] {
     const positions = this.expandPositions(batch);
-    const transforms: AssetInstanceTransform[] = positions.map((item, index) => ({
+    return positions.map((item, index) => ({
       id: item.id ?? `${batch.id}_${String(index + 1).padStart(3, "0")}`,
       position: new THREE.Vector3(
         item.x,
@@ -23,17 +55,6 @@ export class AssetPlacer {
       rotationY: THREE.MathUtils.degToRad(item.rotationDeg ?? 0),
       scale: this.toScale(item.scale),
     }));
-
-    return createInstancedAssetGroup(
-      batch.id,
-      batch.template,
-      transforms,
-      {
-        label: batch.label ?? batch.id,
-        source: "factory-manifest",
-        ...(batch.userData ?? {}),
-      },
-    );
   }
 
   private expandPositions(batch: FactoryAssetBatch): FactoryAssetPosition[] {
@@ -103,7 +124,9 @@ export class AssetPlacer {
   }
 
   private toScale(scale?: number | [number, number, number]): THREE.Vector3 {
-    if (Array.isArray(scale)) return new THREE.Vector3(scale[0], scale[1], scale[2]);
+    if (Array.isArray(scale)) {
+      return new THREE.Vector3(scale[0], scale[1], scale[2]);
+    }
     const value = scale ?? 1;
     return new THREE.Vector3(value, value, value);
   }
