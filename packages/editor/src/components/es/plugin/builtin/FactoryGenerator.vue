@@ -3,10 +3,13 @@ import { ref } from "vue";
 import { App, AddObjectCommand } from "@astral3d/engine";
 import type { FactoryManifest } from "@/core/factory/FactoryManifest";
 import { FactorySceneBuilder } from "@/core/factory/FactorySceneBuilder";
+import { DxfFactoryManifestParser } from "@/core/factory/DxfFactoryManifestParser";
 
 const fileName = ref("");
-const status = ref("请选择 Factory Manifest JSON。也可以直接加载内置示例。");
+const status = ref("请选择 Factory Manifest JSON / DXF。也可以直接加载内置示例。");
 const busy = ref(false);
+const dxfBuildingHeight = ref(18);
+const dxfRoadWidth = ref(12);
 
 async function generate(manifest: FactoryManifest) {
   const builder = new FactorySceneBuilder(manifest, {
@@ -28,6 +31,20 @@ async function generate(manifest: FactoryManifest) {
     `${manifest.assets?.length ?? 0} 个资产批次 / ${instanceCount} 个园区实例。`;
 }
 
+async function manifestFromFile(file: File): Promise<FactoryManifest> {
+  const source = await file.text();
+  if (file.name.toLowerCase().endsWith(".dxf")) {
+    const parser = new DxfFactoryManifestParser({
+      name: file.name.replace(/\.dxf$/i, ""),
+      defaultBuildingHeight: dxfBuildingHeight.value,
+      defaultRoadWidth: dxfRoadWidth.value,
+    });
+    return parser.parse(source);
+  }
+
+  return JSON.parse(source) as FactoryManifest;
+}
+
 async function handleInput(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -35,15 +52,19 @@ async function handleInput(event: Event) {
 
   fileName.value = file.name;
   busy.value = true;
-  status.value = "正在生成园区场景…";
+  status.value = file.name.toLowerCase().endsWith(".dxf")
+    ? "正在解析 DXF 图层并生成园区场景…"
+    : "正在生成园区场景…";
+
   try {
-    const manifest = JSON.parse(await file.text()) as FactoryManifest;
+    const manifest = await manifestFromFile(file);
     await generate(manifest);
   } catch (error) {
     console.error(error);
     status.value = "生成失败：" + (error instanceof Error ? error.message : String(error));
   } finally {
     busy.value = false;
+    input.value = "";
   }
 }
 
@@ -71,25 +92,37 @@ defineExpose({ handleClose });
 <template>
   <div class="factory-generator">
     <div class="intro">
-      <h3>Factory Manifest → Astral3D Scene</h3>
+      <h3>DXF / Factory Manifest → Astral3D Scene</h3>
       <p>
-        从结构化总平数据生成可编辑的半导体园区场景。当前版本支持 CAD/DXF 风格多边形建筑轮廓和 InstancedMesh 重复资产。
+        从 CAD 总平图或结构化 Manifest 生成可编辑的半导体园区场景。支持多边形建筑轮廓和 InstancedMesh 重复资产。
       </p>
     </div>
 
     <div class="actions">
       <button :disabled="busy" @click="loadDemo">加载内置北京厂区示例</button>
       <label class="file-box">
-        <span>选择 Manifest JSON</span>
-        <input type="file" accept=".json,application/json" :disabled="busy" @change="handleInput" />
+        <span>选择 Manifest JSON / DXF</span>
+        <input type="file" accept=".json,.dxf,application/json" :disabled="busy" @change="handleInput" />
       </label>
+    </div>
+
+    <div class="dxf-options">
+      <span>DXF 默认建筑高度</span>
+      <input v-model.number="dxfBuildingHeight" type="number" min="1" step="1" />
+      <span>m</span>
+      <span>道路宽度</span>
+      <input v-model.number="dxfRoadWidth" type="number" min="1" step="1" />
+      <span>m</span>
     </div>
 
     <div v-if="fileName" class="file-name">{{ fileName }}</div>
     <div class="status">{{ status }}</div>
 
     <div class="tips">
-      <strong>当前生成能力：</strong>
+      <strong>DXF 图层约定：</strong>
+      SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PARKING / GREEN。
+      <br />
+      <strong>生成能力：</strong>
       SITE / BUILDINGS / ROADS / PARKING / GREEN / ASSETS；建筑支持 rectangle 与 polygon footprint；
       FAB/Utility 屋顶可实例化生成 HVAC、排气筒和 scrubber；园区支持 cooling tower、transformer、street light、tree 批量实例。
     </div>
@@ -104,6 +137,8 @@ defineExpose({ handleClose });
 .actions button, .file-box { min-height: 72px; border: 1px dashed rgba(128,128,128,.55); border-radius: 8px; background: rgba(128,128,128,.06); cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; box-sizing: border-box; }
 .actions button { font: inherit; }
 .file-box input { display: none; }
+.dxf-options { display: grid; grid-template-columns: auto 88px 24px auto 88px 24px; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; opacity: .9; }
+.dxf-options input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: transparent; color: inherit; }
 .file-name, .status, .tips { margin-top: 14px; }
 .status { font-weight: 600; }
 .tips { padding: 12px; border-radius: 6px; background: rgba(128,128,128,.08); line-height: 1.6; }
