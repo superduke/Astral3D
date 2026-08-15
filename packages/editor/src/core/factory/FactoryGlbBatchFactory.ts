@@ -43,6 +43,7 @@ export class FactoryGlbBatchFactory {
     template.updateMatrixWorld(true);
     const group = this.createBatchRoot(batch, entry, transforms.length, "glb-instanced");
     const instanceAssetIds = transforms.map((item) => item.id);
+    const semanticParentAssetId = this.semanticParentAssetId(batch);
     let partIndex = 0;
 
     template.traverse((node) => {
@@ -63,7 +64,7 @@ export class FactoryGlbBatchFactory {
       mesh.userData = {
         assetType: entry.id,
         batchAssetId: batch.id,
-        parentAssetId: batch.id,
+        parentAssetId: semanticParentAssetId,
         registryAssetId: entry.id,
         sourcePartName: sourceMesh.name,
         instanceAssetIds,
@@ -106,6 +107,7 @@ export class FactoryGlbBatchFactory {
     transforms: AssetInstanceTransform[],
   ): THREE.Group {
     const group = this.createBatchRoot(batch, entry, transforms.length, "glb-shared-clone");
+    const semanticParentAssetId = this.semanticParentAssetId(batch);
 
     transforms.forEach((transform, index) => {
       // Object3D.clone(true) keeps geometry/material references shared. Skinned
@@ -124,7 +126,7 @@ export class FactoryGlbBatchFactory {
         assetId: transform.id,
         assetType: entry.id,
         registryAssetId: entry.id,
-        parentAssetId: batch.id,
+        parentAssetId: semanticParentAssetId,
         renderSource: "glb-shared-clone",
         instanceIndex: index,
       };
@@ -154,6 +156,11 @@ export class FactoryGlbBatchFactory {
       ...(batch.userData ?? {}),
     };
     return group;
+  }
+
+  private semanticParentAssetId(batch: FactoryAssetBatch): string {
+    const parentAssetId = batch.userData?.parentAssetId;
+    return typeof parentAssetId === "string" ? parentAssetId : batch.id;
   }
 
   private hasSourceInstancing(object: THREE.Object3D): boolean {
