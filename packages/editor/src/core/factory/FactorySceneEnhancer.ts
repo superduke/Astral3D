@@ -3,6 +3,7 @@ import type { FactoryBuilding, FactoryManifest, Point2 } from "./FactoryManifest
 import { BuildingFacadeGenerator } from "./BuildingFacadeGenerator";
 import { CampusDetailGenerator } from "./CampusDetailGenerator";
 import { PipeRackGenerator } from "./PipeRackGenerator";
+import { FactoryVisualTuner } from "./FactoryVisualTuner";
 
 export class FactorySceneEnhancer {
   private readonly facadeGenerator = new BuildingFacadeGenerator();
@@ -16,6 +17,7 @@ export class FactorySceneEnhancer {
     this.enhanceBuildings(root);
     this.addPipeRacks(root);
     this.addCampusDetails(root);
+    new FactoryVisualTuner(this.groundOffset).apply(root, this.manifest);
     root.userData.enhancementStage = "L2.5";
     return root;
   }
