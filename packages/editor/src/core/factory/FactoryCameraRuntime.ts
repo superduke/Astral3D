@@ -40,18 +40,52 @@ export class FactoryCameraRuntime {
       };
     }
 
-    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    // AddObjectCommand intentionally selects a newly-created object. That is
+    // useful for normal editor work, but selecting an entire campus produces a
+    // giant yellow selection box + transform gizmo that obscures visual audit.
+    // Overview mode is therefore a clean viewing state; users can explicitly
+    // select individual semantic assets afterwards.
+    App.deselect();
+
     const aspect = Math.max(camera.aspect || 1, 0.1);
     const verticalFov = THREE.MathUtils.degToRad(camera.fov);
     const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
-    const limitingFov = Math.max(THREE.MathUtils.degToRad(12), Math.min(verticalFov, horizontalFov));
-    const radius = Math.max(sphere.radius, 5);
+    const tanV = Math.tan(verticalFov / 2);
+    const tanH = Math.tan(horizontalFov / 2);
 
-    // Fitting a bounding sphere is slightly more conservative than fitToBox,
-    // but guarantees that very wide, low factory campuses remain fully visible
-    // from a deterministic oblique bird-eye direction.
-    const distance = (radius / Math.sin(limitingFov / 2)) * 1.08;
-    const direction = new THREE.Vector3(0.82, 1.08, 0.82).normalize();
+    // Higher elevation than the first implementation. The previous ~43° view
+    // compressed roads/parking into the horizon and made the campus look small.
+    // This ~62° industrial bird-eye view keeps enough facade depth while making
+    // the plan geometry easy to audit against CAD/DXF.
+    const direction = new THREE.Vector3(0.58, 1.72, 0.76).normalize();
+    const worldUp = new THREE.Vector3(0, 1, 0);
+    const viewRight = new THREE.Vector3().crossVectors(worldUp, direction).normalize();
+    const viewUp = new THREE.Vector3().crossVectors(direction, viewRight).normalize();
+
+    // Fit the actual eight Box3 corners in camera space instead of fitting a
+    // conservative bounding sphere. Factory sites are broad and shallow, so a
+    // sphere wastes a large amount of screen space on wide displays.
+    let requiredDistance = 1;
+    for (const x of [box.min.x, box.max.x]) {
+      for (const y of [box.min.y, box.max.y]) {
+        for (const z of [box.min.z, box.max.z]) {
+          const relative = new THREE.Vector3(x, y, z).sub(center);
+          const towardCamera = relative.dot(direction);
+          const horizontal = Math.abs(relative.dot(viewRight));
+          const vertical = Math.abs(relative.dot(viewUp));
+          requiredDistance = Math.max(
+            requiredDistance,
+            towardCamera + horizontal / Math.max(tanH, 1e-4),
+            towardCamera + vertical / Math.max(tanV, 1e-4),
+          );
+        }
+      }
+    }
+
+    // 10% breathing room is enough for the editor chrome and selection of
+    // individual assets, while keeping the factory substantially larger in the
+    // viewport than the old sphere-based 1.08 framing.
+    const distance = Math.max(requiredDistance * 1.1, 10);
     const position = center.clone().addScaledVector(direction, distance);
 
     controls.setLookAt(
