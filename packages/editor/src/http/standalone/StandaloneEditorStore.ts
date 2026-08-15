@@ -43,7 +43,8 @@ class StandaloneEditorStore {
   }
 
   private clean(record: StandaloneProjectRecord): ISceneFetchData {
-    const { sceneJson: _sceneJson, ...metadata } = record;
+    const metadata = { ...record } as StandaloneProjectRecord;
+    delete metadata.sceneJson;
     return metadata as ISceneFetchData;
   }
 
