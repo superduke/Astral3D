@@ -1,42 +1,49 @@
-import * as THREE from "three";
+import type * as THREE from "three";
 import { Loader } from "@astral3d/engine";
 
+interface LoadedGlb {
+  scene: THREE.Group;
+  animations: THREE.AnimationClip[];
+}
+
 /**
- * Loads production GLB assets through Astral3D's own Loader configuration so
- * DRACO, KTX2 and Meshopt support stay consistent with normal editor imports.
+ * Loads Factory GLB assets through Astral3D's own loader stack so DRACO,
+ * KTX2 and Meshopt behaviour stays identical to the editor/runtime. The
+ * engine exports Loader as a singleton, not as a GLTFLoader constructor.
  */
 export class GlbAssetLoader {
-  private readonly loader = new Loader();
-  private readonly cache = new Map<string, Promise<THREE.Object3D>>();
+  private readonly cache = new Map<string, Promise<LoadedGlb>>();
 
-  load(url: string): Promise<THREE.Object3D> {
-    const existing = this.cache.get(url);
-    if (existing) return existing;
+  load(url: string): Promise<LoadedGlb> {
+    const cached = this.cache.get(url);
+    if (cached) return cached;
 
-    const promise = this.loadUncached(url).catch((error) => {
-      // A transient/CORS failure should not poison the cache forever.
+    const pending = this.loadInternal(url).catch((error) => {
+      // Do not leave a rejected promise permanently cached. A later retry can
+      // succeed after an asset is deployed/fixed while procedural fallback
+      // continues to protect the current scene.
       this.cache.delete(url);
       throw error;
     });
-    this.cache.set(url, promise);
-    return promise;
+    this.cache.set(url, pending);
+    return pending;
+  }
+
+  private async loadInternal(url: string): Promise<LoadedGlb> {
+    const loader = await Loader.createGLTFLoader();
+    try {
+      const gltf = await loader.loadAsync(url);
+      return {
+        scene: gltf.scene,
+        animations: gltf.animations ?? [],
+      };
+    } finally {
+      Loader.disposeGLTFLoaderEffects(loader);
+    }
   }
 
   clear(url?: string): void {
     if (url) this.cache.delete(url);
     else this.cache.clear();
-  }
-
-  private async loadUncached(url: string): Promise<THREE.Object3D> {
-    const gltfLoader = await this.loader.createGLTFLoader();
-    try {
-      const result = await gltfLoader.loadAsync(url);
-      const scene = result.scene;
-      scene.name = url.split("/").pop() || "factory-asset.glb";
-      scene.animations.push(...result.animations);
-      return scene;
-    } finally {
-      this.loader.disposeGLTFLoaderEffects(gltfLoader);
-    }
   }
 }
