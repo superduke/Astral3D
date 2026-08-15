@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { App } from "@astral3d/engine";
 import { FactorySemanticRuntime } from "./FactorySemanticRuntime";
+import { prepareFactoryObjectForAstral } from "./FactoryAstralCompat";
 import {
   FactoryTwinStateStore,
   type FactoryAlarmSeverity,
@@ -28,6 +29,7 @@ export class FactoryAlarmRuntime {
     this.stateStore = stateStore ?? new FactoryTwinStateStore();
     this.markerRoot.name = "EHS_ALARMS";
     this.markerRoot.userData = { assetType: "ehs_alarm_collection" };
+    prepareFactoryObjectForAstral(this.markerRoot);
     App.addObject(this.markerRoot, root);
 
     this.unsubscribe = this.stateStore.subscribe((state) => {
@@ -72,6 +74,7 @@ export class FactoryAlarmRuntime {
     if (!marker) {
       marker = this.createMarker(state.assetId, state.severity ?? "critical");
       this.markers.set(state.assetId, marker);
+      prepareFactoryObjectForAstral(marker);
       App.addObject(marker, this.markerRoot);
     } else {
       this.applySeverity(marker, state.severity ?? "critical");
