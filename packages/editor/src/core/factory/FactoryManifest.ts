@@ -1,3 +1,5 @@
+import type { FactoryGlbAssetContract } from "./FactoryGlbAssetSpec";
+
 export interface Point2 {
   x: number;
   y: number;
@@ -129,6 +131,7 @@ export interface FactoryAssetLine {
   scale?: FactoryScale;
 }
 
+/** Legacy v0 field retained for existing manifests. Prefer glb.anchor in v0.1. */
 export type FactoryAssetAnchor = "origin" | "center-base";
 
 export interface FactoryAssetRegistryEntry {
@@ -148,7 +151,16 @@ export interface FactoryAssetRegistryEntry {
   /** Procedural template used while the real asset is unavailable. */
   fallbackTemplate?: FactoryAssetTemplate;
 
-  /** Default transform applied to the loaded model before per-instance transforms. */
+  /**
+   * Factory GLB Asset Specification v0.1. New assets should put source-unit,
+   * axis, anchor, validation and instancing policy here.
+   */
+  glb?: FactoryGlbAssetContract;
+
+  /**
+   * Legacy transform fields. They remain supported so existing manifests do
+   * not change behavior while assets migrate to the v0.1 contract.
+   */
   defaultScale?: FactoryScale;
   rotationOffsetDeg?: number;
   elevationOffset?: number;
