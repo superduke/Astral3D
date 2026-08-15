@@ -11,6 +11,8 @@ const status = ref("请选择 Factory Manifest JSON / DXF。也可以直接加�
 const busy = ref(false);
 const dxfBuildingHeight = ref(18);
 const dxfRoadWidth = ref(12);
+const dxfPipeRackWidth = ref(6);
+const dxfPipeRackHeight = ref(6.5);
 
 async function generate(manifest: FactoryManifest) {
   const builder = new FactorySceneBuilder(manifest, {
@@ -41,6 +43,8 @@ async function manifestFromFile(file: File): Promise<FactoryManifest> {
       name: file.name.replace(/\.dxf$/i, ""),
       defaultBuildingHeight: dxfBuildingHeight.value,
       defaultRoadWidth: dxfRoadWidth.value,
+      defaultPipeRackWidth: dxfPipeRackWidth.value,
+      defaultPipeRackHeight: dxfPipeRackHeight.value,
     });
     return parser.parse(source);
   }
@@ -110,12 +114,10 @@ defineExpose({ handleClose });
     </div>
 
     <div class="dxf-options">
-      <span>DXF 默认建筑高度</span>
-      <input v-model.number="dxfBuildingHeight" type="number" min="1" step="1" />
-      <span>m</span>
-      <span>道路宽度</span>
-      <input v-model.number="dxfRoadWidth" type="number" min="1" step="1" />
-      <span>m</span>
+      <label>建筑高度<input v-model.number="dxfBuildingHeight" type="number" min="1" step="1" /><span>m</span></label>
+      <label>道路宽度<input v-model.number="dxfRoadWidth" type="number" min="1" step="1" /><span>m</span></label>
+      <label>管廊宽度<input v-model.number="dxfPipeRackWidth" type="number" min="1" step="0.5" /><span>m</span></label>
+      <label>管廊高度<input v-model.number="dxfPipeRackHeight" type="number" min="1" step="0.5" /><span>m</span></label>
     </div>
 
     <div v-if="fileName" class="file-name">{{ fileName }}</div>
@@ -123,7 +125,7 @@ defineExpose({ handleClose });
 
     <div class="tips">
       <strong>DXF 图层约定：</strong>
-      SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PARKING / GREEN。
+      SITE_BOUNDARY / BUILDING_FOOTPRINT / ROAD_CENTERLINE / PIPE_RACK_CENTERLINE / PARKING / GREEN。
       <br />
       <strong>生成能力：</strong>
       SITE / BUILDINGS / ROADS / PARKING / GREEN / PIPE_RACKS / ASSETS；建筑支持 rectangle 与 polygon footprint；
@@ -141,7 +143,8 @@ defineExpose({ handleClose });
 .actions button, .file-box { min-height: 72px; border: 1px dashed rgba(128,128,128,.55); border-radius: 8px; background: rgba(128,128,128,.06); cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; box-sizing: border-box; }
 .actions button { font: inherit; }
 .file-box input { display: none; }
-.dxf-options { display: grid; grid-template-columns: auto 88px 24px auto 88px 24px; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; opacity: .9; }
+.dxf-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin-top: 14px; font-size: 13px; }
+.dxf-options label { display: grid; grid-template-columns: 1fr 76px 20px; gap: 6px; align-items: center; }
 .dxf-options input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid rgba(128,128,128,.35); border-radius: 5px; background: transparent; color: inherit; }
 .file-name, .status, .tips { margin-top: 14px; }
 .status { font-weight: 600; }
