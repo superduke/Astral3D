@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { FactoryBuilding, FactoryManifest, Point2 } from "./FactoryManifest";
 import { BuildingFacadeGenerator } from "./BuildingFacadeGenerator";
+import { CampusDetailGenerator } from "./CampusDetailGenerator";
 import { PipeRackGenerator } from "./PipeRackGenerator";
 
 export class FactorySceneEnhancer {
@@ -14,6 +15,7 @@ export class FactorySceneEnhancer {
   apply(root: THREE.Group): THREE.Group {
     this.enhanceBuildings(root);
     this.addPipeRacks(root);
+    this.addCampusDetails(root);
     root.userData.enhancementStage = "L2.5";
     return root;
   }
@@ -48,8 +50,14 @@ export class FactorySceneEnhancer {
     root.add(pipeRackRoot);
   }
 
+  private addCampusDetails(root: THREE.Group): void {
+    const details = new CampusDetailGenerator(this.groundOffset).create(this.manifest);
+    if (details.children.length) root.add(details);
+  }
+
   private resolveLocalWorldFootprint(item: FactoryBuilding): THREE.Vector2[] {
     const plan = this.resolveFootprint(item);
+    if (!plan.length) return [];
     const xs = plan.map((point) => point.x);
     const ys = plan.map((point) => point.y);
     const center = {
