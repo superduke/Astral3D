@@ -129,10 +129,47 @@ export interface FactoryAssetLine {
   scale?: FactoryScale;
 }
 
+export type FactoryAssetAnchor = "origin" | "center-base";
+
+export interface FactoryAssetRegistryEntry {
+  /** Stable semantic asset-library key, e.g. semiconductor.coolingTower.A */
+  id: string;
+  label?: string;
+
+  /**
+   * Optional production model. When absent or loading fails, the procedural
+   * fallback remains visible.
+   */
+  source?: {
+    type: "glb";
+    url: string;
+  };
+
+  /** Procedural template used while the real asset is unavailable. */
+  fallbackTemplate?: FactoryAssetTemplate;
+
+  /** Default transform applied to the loaded model before per-instance transforms. */
+  defaultScale?: FactoryScale;
+  rotationOffsetDeg?: number;
+  elevationOffset?: number;
+  anchor?: FactoryAssetAnchor;
+
+  userData?: Record<string, unknown>;
+}
+
 export interface FactoryAssetBatch {
   id: string;
   label?: string;
-  template: FactoryAssetTemplate;
+
+  /**
+   * Stable registry key for the high-fidelity model. If the registry entry has
+   * no GLB source, `template`/registry fallback is rendered procedurally.
+   */
+  asset?: string;
+
+  /** Backward-compatible procedural fallback template. */
+  template?: FactoryAssetTemplate;
+
   positions?: FactoryAssetPosition[];
   grid?: FactoryAssetGrid;
   line?: FactoryAssetLine;
@@ -155,5 +192,8 @@ export interface FactoryManifest {
   greenAreas?: Point2[][];
   pipeRacks?: FactoryPipeRack[];
   campus?: FactoryCampusDetails;
+
+  /** Optional asset-library entries used to upgrade procedural batches to GLB. */
+  assetRegistry?: FactoryAssetRegistryEntry[];
   assets?: FactoryAssetBatch[];
 }
