@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "name": "SMIC Beijing Concept Site Plan",
+    "version": "0.2",
+    "unit": "meter",
+    "coordinateSystem": "LOCAL_CARTESIAN_NORTH_UP",
+    "accuracy": "conceptual / visualization-grade",
+    "disclaimer": "Approximate exterior massing for digital-twin visualization; not survey/as-built data."
+  },
+  "siteBoundary": [
+    {"x":0,"y":35},{"x":45,"y":0},{"x":655,"y":0},{"x":715,"y":55},
+    {"x":725,"y":695},{"x":685,"y":755},{"x":55,"y":755},{"x":0,"y":700}
+  ],
+  "buildings": [
+    {"id":"FAB_A","label":"FAB-A","type":"fab","x":350,"y":540,"w":225,"h":125,"z":28,"facade":{"windowBand":true},"roof":{"parapet":true,"hvacCount":12}},
+    {"id":"FAB_B","label":"FAB-B","type":"fab","x":350,"y":390,"w":225,"h":125,"z":28,"facade":{"windowBand":true},"roof":{"parapet":true,"hvacCount":12}},
+    {"id":"UTILITY_N","label":"UTILITY-N","type":"utility","x":85,"y":505,"w":190,"h":105,"z":18,"roof":{"parapet":true,"hvacCount":8}},
+    {"id":"SUPPORT_N","label":"SUPPORT-N","type":"support","x":95,"y":365,"w":155,"h":80,"z":15},
+    {"id":"ADMIN_N","label":"ADMIN","type":"office","x":585,"y":565,"w":90,"h":70,"z":22,"facade":{"windowBand":true}},
+    {"id":"WAREHOUSE_N","label":"WAREHOUSE","type":"warehouse","x":85,"y":645,"w":150,"h":60,"z":12},
+    {"id":"RND","label":"R&D / OFFICE","type":"office","x":430,"y":285,"w":120,"h":82,"z":34,"facade":{"windowBand":true}},
+    {"id":"SERVICE_C","label":"SERVICE","type":"support","x":95,"y":275,"w":165,"h":70,"z":13},
+    {"id":"FAB_C","label":"FAB-C","type":"fab","x":325,"y":105,"w":185,"h":130,"z":26,"facade":{"windowBand":true},"roof":{"parapet":true,"hvacCount":10}},
+    {"id":"FAB_D","label":"FAB-D","type":"fab","x":525,"y":105,"w":155,"h":130,"z":26,"facade":{"windowBand":true},"roof":{"parapet":true,"hvacCount":10}},
+    {"id":"UTILITY_S","label":"UTILITY-S","type":"utility","x":80,"y":145,"w":190,"h":82,"z":16,"roof":{"parapet":true,"hvacCount":6}},
+    {"id":"SUPPORT_S","label":"SUPPORT-S","type":"support","x":80,"y":65,"w":190,"h":58,"z":11}
+  ],
+  "roads": [
+    {"id":"R_EAST","points":[[680,45],[680,710]],"width":14},
+    {"id":"R_WEST","points":[[45,55],[45,690]],"width":12},
+    {"id":"R_MAIN_EW_1","points":[[45,255],[680,255]],"width":14},
+    {"id":"R_MAIN_EW_2","points":[[45,535],[680,535]],"width":14},
+    {"id":"R_CENTRAL_NS","points":[[300,40],[300,715]],"width":12}
+  ],
+  "parking": [
+    {"id":"PARK_E1","x":590,"y":285,"w":70,"h":145,"label":"PARKING"},
+    {"id":"PARK_N1","x":285,"y":675,"w":250,"h":55,"label":"PARKING"},
+    {"id":"PARK_S1","x":530,"y":35,"w":130,"h":45,"label":"PARKING"}
+  ],
+  "greenAreas": [
+    [{"x":55,"y":55},{"x":55,"y":235},{"x":65,"y":235},{"x":65,"y":55}],
+    [{"x":695,"y":95},{"x":695,"y":500},{"x":705,"y":500},{"x":705,"y":95}],
+    [{"x":275,"y":555},{"x":320,"y":555},{"x":320,"y":690},{"x":275,"y":690}],
+    [{"x":280,"y":55},{"x":305,"y":55},{"x":305,"y":235},{"x":280,"y":235}]
+  ]
+}
