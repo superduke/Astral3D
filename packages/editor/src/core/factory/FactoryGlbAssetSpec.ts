@@ -17,6 +17,7 @@ export type FactoryGlbAxis =
   | "+Z"
   | "-Z";
 
+export type FactoryGlbScale = number | [number, number, number];
 export type FactoryGlbAnchor = "origin" | "center-base" | "custom";
 
 export type FactoryGlbInstancingMode =
@@ -92,7 +93,8 @@ export interface FactoryGlbAssetContract {
    */
   customAnchor?: [number, number, number];
 
-  /** Asset-level rotation in canonical XYZ axes, expressed in degrees. */
+  /** Asset-level correction after unit/axis normalization. */
+  defaultScale?: FactoryGlbScale;
   defaultRotationDeg?: [number, number, number];
 
   instancing?: FactoryGlbInstancingSpec;
