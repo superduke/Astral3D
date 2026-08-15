@@ -53,11 +53,12 @@ export class FactoryCameraRuntime {
     const tanV = Math.tan(verticalFov / 2);
     const tanH = Math.tan(horizontalFov / 2);
 
-    // Higher elevation than the first implementation. The previous ~43° view
-    // compressed roads/parking into the horizon and made the campus look small.
-    // This ~62° industrial bird-eye view keeps enough facade depth while making
-    // the plan geometry easy to audit against CAD/DXF.
-    const direction = new THREE.Vector3(0.58, 1.72, 0.76).normalize();
+    // Visual audit showed that the previous ~61° elevation read almost like a
+    // CAD Top view: footprint comparison was easy, but building height, facade
+    // bands and rooftop equipment were visually flattened. Use a ~52° 3/4
+    // digital-twin overview instead. The asymmetric azimuth avoids a perfectly
+    // axial/isometric look and keeps both primary building facades readable.
+    const direction = new THREE.Vector3(0.82, 1.35, 0.66).normalize();
     const worldUp = new THREE.Vector3(0, 1, 0);
     const viewRight = new THREE.Vector3().crossVectors(worldUp, direction).normalize();
     const viewUp = new THREE.Vector3().crossVectors(direction, viewRight).normalize();
@@ -82,10 +83,10 @@ export class FactoryCameraRuntime {
       }
     }
 
-    // 10% breathing room is enough for the editor chrome and selection of
-    // individual assets, while keeping the factory substantially larger in the
-    // viewport than the old sphere-based 1.08 framing.
-    const distance = Math.max(requiredDistance * 1.1, 10);
+    // Keep a small presentation margin without shrinking the campus back into
+    // the center of an ultrawide viewport. The exact fit is already conservative
+    // because all eight world-space bounds corners participate.
+    const distance = Math.max(requiredDistance * 1.06, 10);
     const position = center.clone().addScaledVector(direction, distance);
 
     controls.setLookAt(
