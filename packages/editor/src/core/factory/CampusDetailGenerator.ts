@@ -86,7 +86,10 @@ export class CampusDetailGenerator {
         const offset = Math.max(0.4, halfWidth - 0.45) * side;
         const center = a.clone().lerp(b, 0.5).addScaledVector(normal, offset);
         const edge = new THREE.Mesh(
-          new THREE.BoxGeometry(0.09, 0.025, length),
+          // 9 cm lines were technically present but aliased away in a
+          // 700–800 m campus overview. Keep them plausible while ensuring the
+          // lane boundary survives normal digital-twin viewing distances.
+          new THREE.BoxGeometry(0.16, 0.03, length),
           white,
         );
         edge.name = `${road.id}_EDGE_${index + 1}_${side > 0 ? "R" : "L"}`;
@@ -95,18 +98,21 @@ export class CampusDetailGenerator {
         group.add(edge);
       }
 
-      const dashLength = 3.2;
-      const gap = 4.0;
+      // The original 3.2 m / 4.0 m dash pattern became a dense dotted texture
+      // in the whole-campus view. A longer visualization-grade cadence reads as
+      // a road centerline from afar and also reduces object count.
+      const dashLength = 5.5;
+      const gap = 7.5;
       const stride = dashLength + gap;
       const dashCount = Math.max(1, Math.floor(length / stride));
       for (let dashIndex = 0; dashIndex < dashCount; dashIndex++) {
         const distance = Math.min(
           length - dashLength / 2,
-          dashIndex * stride + dashLength / 2 + 0.8,
+          dashIndex * stride + dashLength / 2 + 1.0,
         );
         const center = a.clone().addScaledVector(tangent, distance);
         const dash = new THREE.Mesh(
-          new THREE.BoxGeometry(0.12, 0.03, dashLength),
+          new THREE.BoxGeometry(0.18, 0.035, dashLength),
           yellow,
         );
         dash.name = `${road.id}_CENTER_DASH_${index + 1}_${dashIndex + 1}`;
@@ -130,8 +136,8 @@ export class CampusDetailGenerator {
     const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xf1f3f4 });
     const slotWidth = 2.7;
     const slotDepth = 5.3;
-    const lineWidth = 0.07;
-    const y = this.groundOffset + 0.095;
+    const lineWidth = 0.12;
+    const y = this.groundOffset + 0.105;
 
     if (item.w >= item.h) {
       const count = Math.max(1, Math.floor(item.w / slotWidth));
@@ -142,10 +148,10 @@ export class CampusDetailGenerator {
         for (const row of rows) {
           const startY = row === 0 ? item.y : item.y + item.h - slotDepth;
           const line = new THREE.Mesh(
-            new THREE.BoxGeometry(lineWidth, 0.025, Math.min(slotDepth, item.h)),
+            new THREE.BoxGeometry(lineWidth, 0.03, Math.min(slotDepth, item.h)),
             lineMaterial,
           );
-          const center = this.planToWorld(x, startY + Math.min(slotDepth, item.h) / 2, 0.095);
+          const center = this.planToWorld(x, startY + Math.min(slotDepth, item.h) / 2, 0.105);
           line.position.set(center.x, y, center.z);
           group.add(line);
         }
@@ -159,10 +165,10 @@ export class CampusDetailGenerator {
         for (const row of rows) {
           const startX = row === 0 ? item.x : item.x + item.w - slotDepth;
           const line = new THREE.Mesh(
-            new THREE.BoxGeometry(Math.min(slotDepth, item.w), 0.025, lineWidth),
+            new THREE.BoxGeometry(Math.min(slotDepth, item.w), 0.03, lineWidth),
             lineMaterial,
           );
-          const center = this.planToWorld(startX + Math.min(slotDepth, item.w) / 2, planY, 0.095);
+          const center = this.planToWorld(startX + Math.min(slotDepth, item.w) / 2, planY, 0.105);
           line.position.set(center.x, y, center.z);
           group.add(line);
         }
