@@ -13,7 +13,7 @@ function emptyAssetPage(params: Service.ListPageQueryParams): Service.ListPageRe
         current: Math.floor(offset / limit) + 1,
         items: [],
         pageSize: limit,
-        pages: 0,
+        pages: 1,
         total: 0,
     };
 }
