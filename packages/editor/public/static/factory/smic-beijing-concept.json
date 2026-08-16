@@ -102,6 +102,7 @@
     {
       "id":"semiconductor.transformer.A",
       "label":"Transformer A",
+      "source":{"type":"glb","url":"/static/factory/assets/high_voltage_power_transformer.glb"},
       "fallbackTemplate":"transformer",
       "glb":{
         "specVersion":"0.1","unit":"meter",
