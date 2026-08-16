@@ -9,6 +9,7 @@
     <div class="pr-2">
       <n-button-group size="small">
         <n-button :type="transform === 'translate' ? 'success' : 'default'"
+                  title="移动对象 / 平移视图"
                   @click.stop="handlerRadioChange('translate')" round>
           <template #icon>
             <n-icon :size="16">
@@ -16,14 +17,18 @@
             </n-icon>
           </template>
         </n-button>
-        <n-button :type="transform === 'rotate' ? 'success' : 'default'" @click.stop="handlerRadioChange('rotate')">
+        <n-button :type="transform === 'rotate' ? 'success' : 'default'"
+                  title="旋转对象 / 旋转视图"
+                  @click.stop="handlerRadioChange('rotate')">
           <template #icon>
             <n-icon :size="16">
               <Renew/>
             </n-icon>
           </template>
         </n-button>
-        <n-button :type="transform === 'scale' ? 'success' : 'default'" @click.stop="handlerRadioChange('scale')" round>
+        <n-button :type="transform === 'scale' ? 'success' : 'default'"
+                  title="缩放对象"
+                  @click.stop="handlerRadioChange('scale')" round>
           <template #icon>
             <n-icon :size="16">
               <Minimize/>
@@ -78,7 +83,28 @@ import ViewportCamera from './ViewportCamera.vue';
 import ViewportShading from './ViewportShading.vue';
 
 const transform = ref("translate");
+
+/**
+ * Keep background drag semantics aligned with the first two transform buttons.
+ * Dragging a TransformControls gizmo still edits the selected object; dragging
+ * empty viewport space pans in translate mode and orbits in rotate/scale mode.
+ * Resolve ACTION from the live controls constructor so we do not import a
+ * second camera-controls runtime into the editor bundle.
+ */
+function syncViewportNavigation(value: string) {
+  const controls = window.viewer?.modules?.controls;
+  if(!controls) return;
+
+  const actions = (controls.constructor as any)?.ACTION;
+  if(!actions) return;
+
+  controls.mouseButtons.left = value === 'translate'
+    ? actions.TRUCK
+    : actions.ROTATE;
+}
+
 function handlerRadioChange(value: string) {
+  syncViewportNavigation(value);
   if(value === transform.value) return;
 
   transform.value = value;
@@ -126,6 +152,7 @@ function handleToolCheckedChange(tool:ITool,checked:boolean){
 
 onMounted(() => {
   Hooks.useAddSignal("transformModeChanged",handlerRadioChange);
+  syncViewportNavigation(transform.value);
 })
 onBeforeUnmount(() => {
   Hooks.useRemoveSignal("transformModeChanged",handlerRadioChange);
