@@ -46,9 +46,21 @@ export class FactorySemanticRuntime {
   }
 
   selectAsset(assetId: string): THREE.Object3D | undefined {
-    const object = this.findAsset(assetId);
-    if (object) App.select(object);
-    return object;
+    const target = this.resolveAssetBounds(assetId);
+    if (!target) return undefined;
+
+    if (target.instanceId !== undefined) {
+      // A semantic instance is not an independently transformable Object3D.
+      // Attaching Astral's TransformControls to the backing InstancedMesh would
+      // expose the batch mesh-part origin and could accidentally move every
+      // physical device represented by that part. Keep semantic selection safe
+      // by clearing the editor Object3D selection instead.
+      App.deselect();
+      return target.object;
+    }
+
+    App.select(target.object);
+    return target.object;
   }
 
   focusAsset(assetId: string, select = true): THREE.Object3D | undefined {
@@ -56,17 +68,17 @@ export class FactorySemanticRuntime {
     if (!target) return undefined;
 
     if (target.instanceId !== undefined) {
-      // Astral3D's normal App.focus(object) computes Box3 from the whole
-      // InstancedMesh, which would frame every cooling tower/street light in
-      // the batch. A semantic assetId represents one physical device, so fit
-      // the camera to the aggregate bounds of that exact instance instead.
       if (select) App.deselect();
-      const controls = App.viewer?.modules?.controls;
-      if (controls && typeof controls.fitToBox === "function" && !target.box.isEmpty()) {
-        controls.fitToBox(target.box, true);
-      } else {
-        // Preserve a usable fallback for hosts without editor CameraControls.
-        App.focus(target.object);
+
+      // Do not pass an editor-side THREE.Box3 into the CameraControls instance
+      // bundled inside @astral3d/engine. Astral3D and Factory Generator can run
+      // with distinct Three.js runtimes; fitToBox() crossing that boundary is
+      // unnecessary and has produced invalid/black FlyTo views in practice.
+      // Convert bounds to plain numeric camera parameters and use setLookAt().
+      if (!this.focusBoundsSafely(target.box)) {
+        console.warn(
+          `[FactorySemanticRuntime] Cannot safely FlyTo instance ${assetId}; keeping current camera.`,
+        );
       }
       return target.object;
     }
@@ -180,6 +192,90 @@ export class FactorySemanticRuntime {
       object,
       box: computeFactoryObjectBounds(object),
     };
+  }
+
+  /**
+   * Frames world bounds using numeric camera data only.
+   *
+   * The direction follows the current camera orientation while the distance is
+   * derived from the bounding sphere and the limiting horizontal/vertical FOV.
+   * A minimum radius/distance prevents degenerate or very thin assets from
+   * placing the camera on/inside geometry or below the near plane.
+   */
+  private focusBoundsSafely(box: THREE.Box3, enableTransition = true): boolean {
+    if (box.isEmpty()) return false;
+
+    const controls = App.viewer?.modules?.controls;
+    const camera = App.camera;
+    if (!controls || typeof controls.setLookAt !== "function" || !camera?.isPerspectiveCamera) {
+      return false;
+    }
+
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const finite = [center.x, center.y, center.z, size.x, size.y, size.z].every(
+      Number.isFinite,
+    );
+    if (!finite) return false;
+
+    const verticalFov = THREE.MathUtils.degToRad(Math.max(camera.fov, 1));
+    const aspect = Math.max(camera.aspect || 1, 0.1);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+    const limitingHalfFov = Math.max(
+      Math.min(verticalFov, horizontalFov) / 2,
+      THREE.MathUtils.degToRad(5),
+    );
+
+    const radius = Math.max(size.length() * 0.5, 0.75);
+    const fittedDistance = radius / Math.max(Math.sin(limitingHalfFov), 0.05);
+    const distance = Math.max(
+      fittedDistance * 1.18,
+      Math.max(size.y * 1.5, 4),
+      Math.max(camera.near * 100, 1),
+    );
+
+    // Camera local +Z points backwards, i.e. from the target toward the camera.
+    // Rebuild the direction from quaternion numeric components so no Vector3 or
+    // Quaternion object crosses the editor/engine Three.js runtime boundary.
+    const cameraQuaternion = camera.quaternion;
+    const direction = new THREE.Vector3(0, 0, 1)
+      .applyQuaternion(
+        new THREE.Quaternion(
+          cameraQuaternion.x,
+          cameraQuaternion.y,
+          cameraQuaternion.z,
+          cameraQuaternion.w,
+        ),
+      )
+      .normalize();
+
+    if (
+      ![direction.x, direction.y, direction.z].every(Number.isFinite) ||
+      direction.lengthSq() < 1e-6
+    ) {
+      direction.set(0.72, 0.58, 0.38).normalize();
+    }
+
+    // Avoid a near-horizontal/underground semantic FlyTo even if the user has
+    // previously rotated the camera to an extreme angle. Preserve azimuth, but
+    // keep a readable digital-twin elevation.
+    if (direction.y < 0.18) {
+      direction.y = 0.35;
+      direction.normalize();
+    }
+
+    const position = center.clone().addScaledVector(direction, distance);
+    controls.setLookAt(
+      position.x,
+      position.y,
+      position.z,
+      center.x,
+      center.y,
+      center.z,
+      enableTransition,
+    );
+
+    return true;
   }
 
   private findDirectAsset(assetId: string): THREE.Object3D | undefined {
