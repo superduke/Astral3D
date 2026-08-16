@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "SMIC Beijing Concept Site Plan",
-    "version": "0.8",
+    "version": "0.9",
     "unit": "meter",
     "coordinateSystem": "LOCAL_CARTESIAN_NORTH_UP",
     "accuracy": "conceptual / visualization-grade",
@@ -117,13 +117,14 @@
     {
       "id":"semiconductor.hvac.A",
       "label":"Rooftop HVAC A",
+      "source":{"type":"glb","url":"/static/factory/assets/hvac-a.glb"},
       "fallbackTemplate":"hvac",
       "glb":{
         "specVersion":"0.1","unit":"meter",
         "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
         "anchor":"center-base",
-        "instancing":{"mode":"auto"},
-        "validation":{"maxTriangles":30000,"maxDimensionMeters":15},
+        "instancing":{"mode":"shared-clone"},
+        "validation":{"maxTriangles":30000,"maxDimensionMeters":10},
         "materialPolicy":{"maxMaterials":6,"allowTransparent":false}
       },
       "userData":{"category":"facility","placement":"roof"}
