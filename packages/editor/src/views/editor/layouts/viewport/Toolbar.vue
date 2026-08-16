@@ -84,23 +84,27 @@ import ViewportShading from './ViewportShading.vue';
 
 const transform = ref("translate");
 
-/**
- * Keep background drag semantics aligned with the first two transform buttons.
- * Dragging a TransformControls gizmo still edits the selected object; dragging
- * empty viewport space pans in translate mode and orbits in rotate/scale mode.
- * Resolve ACTION from the live controls constructor so we do not import a
- * second camera-controls runtime into the editor bundle.
- */
+// CameraControls already owns the authoritative mouse action values. Its
+// default mapping is left=ROTATE and right=TRUCK. Cache those live values
+// before changing left so this editor does not depend on ACTION being exposed
+// through controls.constructor (which is not guaranteed by the bundled SDK).
+let rotateMouseAction: number | undefined;
+let panMouseAction: number | undefined;
+
 function syncViewportNavigation(value: string) {
   const controls = window.viewer?.modules?.controls;
   if(!controls) return;
 
-  const actions = (controls.constructor as any)?.ACTION;
-  if(!actions) return;
+  if(rotateMouseAction === undefined) {
+    rotateMouseAction = controls.mouseButtons.left;
+  }
+  if(panMouseAction === undefined) {
+    panMouseAction = controls.mouseButtons.right;
+  }
 
   controls.mouseButtons.left = value === 'translate'
-    ? actions.TRUCK
-    : actions.ROTATE;
+    ? panMouseAction
+    : rotateMouseAction;
 }
 
 function handlerRadioChange(value: string) {
