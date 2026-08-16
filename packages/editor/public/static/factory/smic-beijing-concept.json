@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "SMIC Beijing Concept Site Plan",
-    "version": "0.7",
+    "version": "0.8",
     "unit": "meter",
     "coordinateSystem": "LOCAL_CARTESIAN_NORTH_UP",
     "accuracy": "conceptual / visualization-grade",
@@ -87,6 +87,7 @@
     {
       "id":"semiconductor.coolingTower.A",
       "label":"Cooling Tower A",
+      "source":{"type":"glb","url":"/static/factory/assets/cooling-tower-a.glb"},
       "fallbackTemplate":"cooling_tower",
       "glb":{
         "specVersion":"0.1","unit":"meter",
