@@ -247,7 +247,7 @@ export class BuildingArchitectureGenerator {
       Math.min(item.facade?.louverBands ?? profile.envelope.louverRows, 5),
     );
     if (louverRows > 0) {
-      this.addLouvers(target, item, footprint, profile, louverRows, mainHeight);
+      this.addLouvers(target, item, footprint, louverRows, mainHeight);
     }
 
     const loadingBayCount = Math.max(
@@ -317,7 +317,6 @@ export class BuildingArchitectureGenerator {
     target: THREE.Group,
     item: FactoryBuilding,
     footprint: ResolvedFootprint,
-    profile: BuildingStyleProfile,
     rows: number,
     mainHeight: number,
   ): void {
