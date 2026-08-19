@@ -1,6 +1,10 @@
 <template>
     <n-modal :show="show" @update:show="(b) => emits('update:show', b)" class="!w-500px" preset="card"
         :title="t('cad[\'CAD upload and parse\']')">
+        <n-alert v-if="isStandaloneMode" type="info" :bordered="false" class="mb-15px">
+            Standalone 模式不启用服务端 CAD 资源库。工厂总平 DXF 请使用 AI Factory Generator 的“导入 DXF”；DWG 转 DXF 需要启动 astral-service。
+        </n-alert>
+
         <n-form label-placement="left" :model="CADModel" :rules="CADRules" label-width="100px" label-align="right"
             ref="formRef" require-mark-placement="right-hanging">
             <n-form-item :label="t('cad[\'CAD file\']')" path="cadFile">
@@ -23,7 +27,7 @@
         </n-form>
 
         <div class="flex justify-end">
-            <n-button round type="primary" @click="submit">{{ t("cad['Upload and parse']") }}</n-button>
+            <n-button round type="primary" :disabled="isStandaloneMode" @click="submit">{{ t("cad['Upload and parse']") }}</n-button>
         </div>
     </n-modal>
 </template>
@@ -35,6 +39,7 @@ import { t } from "@/language";
 import { ArchiveOutline } from "@vicons/ionicons5";
 import { DRAWING_SUPPORT_TYPE, NEED_CONVERT_DRAWING } from "@/utils/common/constant";
 import { fetchAddDwg2dxf } from "@/http/api/cad";
+import { isStandaloneMode } from "@/http/standalone";
 
 withDefaults(defineProps<{
     show: boolean
@@ -98,6 +103,12 @@ const getNotice = () => notice;
 // 提交
 function submit(e) {
     e.preventDefault();
+
+    if (isStandaloneMode) {
+        window.$message?.info("Standalone 模式请在 AI Factory Generator 中直接导入 DXF；DWG 转换需要 astral-service。");
+        return;
+    }
+
     formRef.value?.validate(async (errors) => {
         if (!errors) {
             emits("update:show", false);

@@ -5,6 +5,7 @@
 	import { connectWebSocket } from "@/hooks/useWebSocket";
 	import { useRoute } from "vue-router";
 	import { fetchGetOneScene } from "@/http/api/scenes";
+	import { isStandaloneMode, standaloneEditorStore } from "@/http/standalone";
 	import { t } from "@/language";
 	import { initializeConfig } from "@/utils/storage/config";
 	import EsCubeLoading from "@/components/es/EsCubeLoading.vue";
@@ -23,14 +24,15 @@
 	provide("drawingInfo", drawingInfo);
 
 	onMounted(() => {
-		// 启动websocket连接
-		connectWebSocket(import.meta.env.VITE_GLOB_SOCKET_URL);
+		// Standalone 模式不依赖 astral-service WebSocket。
+		if (!isStandaloneMode) {
+			connectWebSocket(import.meta.env.VITE_GLOB_SOCKET_URL);
+		}
 
 		init();
 	});
 
 	async function init() {
-		// 获取路由参数
 		const id = useRoute().params.id as string;
 		if (id) {
 			const res = await fetchGetOneScene(id);
@@ -46,6 +48,15 @@
 			initLoading.value = false;
 
 			await nextTick();
+
+			if (isStandaloneMode) {
+				const sceneJson = await standaloneEditorStore.getSceneJson(id);
+				if (sceneJson) {
+					await App.fromJSON(sceneJson as ISceneJson);
+					Hooks.useDispatchSignal("sceneLoadComplete");
+					return;
+				}
+			}
 
 			getScene(res.data);
 		} else {
@@ -118,10 +129,6 @@
 					<Layout.Sidebar />
 				</n-layout-sider>
 			</n-layout>
-
-			<!-- <n-layout-footer bordered position="absolute">
-  <Layout.Footer/>
-</n-layout-footer> -->
 		</n-layout>
 
 		<EsPlugin />
@@ -155,7 +162,6 @@
 				top: var(--header-height);
 				bottom: var(--footer-height);
 				width: 100%;
-				// height: calc(100vh - var(--header-height) - var(--footer-height));
 				height: calc(100vh - var(--header-height));
 				overflow: hidden;
 			}

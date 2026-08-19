@@ -9,6 +9,7 @@
     <div class="pr-2">
       <n-button-group size="small">
         <n-button :type="transform === 'translate' ? 'success' : 'default'"
+                  title="移动对象 / 平移视图"
                   @click.stop="handlerRadioChange('translate')" round>
           <template #icon>
             <n-icon :size="16">
@@ -16,14 +17,18 @@
             </n-icon>
           </template>
         </n-button>
-        <n-button :type="transform === 'rotate' ? 'success' : 'default'" @click.stop="handlerRadioChange('rotate')">
+        <n-button :type="transform === 'rotate' ? 'success' : 'default'"
+                  title="旋转对象 / 旋转视图"
+                  @click.stop="handlerRadioChange('rotate')">
           <template #icon>
             <n-icon :size="16">
               <Renew/>
             </n-icon>
           </template>
         </n-button>
-        <n-button :type="transform === 'scale' ? 'success' : 'default'" @click.stop="handlerRadioChange('scale')" round>
+        <n-button :type="transform === 'scale' ? 'success' : 'default'"
+                  title="缩放对象"
+                  @click.stop="handlerRadioChange('scale')" round>
           <template #icon>
             <n-icon :size="16">
               <Minimize/>
@@ -78,7 +83,32 @@ import ViewportCamera from './ViewportCamera.vue';
 import ViewportShading from './ViewportShading.vue';
 
 const transform = ref("translate");
+
+// CameraControls already owns the authoritative mouse action values. Its
+// default mapping is left=ROTATE and right=TRUCK. Cache those live values
+// before changing left so this editor does not depend on ACTION being exposed
+// through controls.constructor (which is not guaranteed by the bundled SDK).
+let rotateMouseAction: number | undefined;
+let panMouseAction: number | undefined;
+
+function syncViewportNavigation(value: string) {
+  const controls = window.viewer?.modules?.controls;
+  if(!controls) return;
+
+  if(rotateMouseAction === undefined) {
+    rotateMouseAction = controls.mouseButtons.left;
+  }
+  if(panMouseAction === undefined) {
+    panMouseAction = controls.mouseButtons.right;
+  }
+
+  controls.mouseButtons.left = value === 'translate'
+    ? panMouseAction
+    : rotateMouseAction;
+}
+
 function handlerRadioChange(value: string) {
+  syncViewportNavigation(value);
   if(value === transform.value) return;
 
   transform.value = value;
@@ -126,6 +156,7 @@ function handleToolCheckedChange(tool:ITool,checked:boolean){
 
 onMounted(() => {
   Hooks.useAddSignal("transformModeChanged",handlerRadioChange);
+  syncViewportNavigation(transform.value);
 })
 onBeforeUnmount(() => {
   Hooks.useRemoveSignal("transformModeChanged",handlerRadioChange);

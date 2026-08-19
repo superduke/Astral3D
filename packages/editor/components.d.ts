@@ -34,6 +34,7 @@ declare module 'vue' {
     EsPopTreeSelect: typeof import('./src/components/es/EsPopTreeSelect.vue')['default']
     EsTexture: typeof import('./src/components/es/EsTexture.vue')['default']
     EsTip: typeof import('./src/components/es/EsTip.vue')['default']
+    FactoryGenerator: typeof import('./src/components/es/plugin/builtin/FactoryGenerator.vue')['default']
     Fullscreen: typeof import('./src/components/header/navigation/Fullscreen.vue')['default']
     GLTFHandler: typeof import('./src/components/es/plugin/builtin/GLTFHandler.vue')['default']
     GLTFHandlerForm: typeof import('./src/components/es/plugin/builtin/glTFHandler/GLTFHandlerForm.vue')['default']
