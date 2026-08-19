@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "SMIC Beijing Concept Site Plan",
-    "version": "0.9",
+    "version": "1.0",
     "unit": "meter",
     "coordinateSystem": "LOCAL_CARTESIAN_NORTH_UP",
     "accuracy": "conceptual / visualization-grade",
@@ -93,6 +93,7 @@
         "specVersion":"0.1","unit":"meter",
         "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
         "anchor":"center-base",
+        "defaultScale":8.51,
         "instancing":{"mode":"auto"},
         "validation":{"maxTriangles":80000,"maxDimensionMeters":40},
         "materialPolicy":{"maxMaterials":8,"allowTransparent":false}
@@ -102,12 +103,13 @@
     {
       "id":"semiconductor.transformer.A",
       "label":"Transformer A",
-      "source":{"type":"glb","url":"/static/factory/assets/high_voltage_power_transformer.glb"},
+      "source":{"type":"glb","url":"/static/factory/assets/transformer-a.glb"},
       "fallbackTemplate":"transformer",
       "glb":{
         "specVersion":"0.1","unit":"meter",
         "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
         "anchor":"center-base",
+        "defaultScale":5.35,
         "instancing":{"mode":"auto"},
         "validation":{"maxTriangles":50000,"maxDimensionMeters":20},
         "materialPolicy":{"maxMaterials":8,"allowTransparent":false}
@@ -123,7 +125,8 @@
         "specVersion":"0.1","unit":"meter",
         "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
         "anchor":"center-base",
-        "instancing":{"mode":"shared-clone"},
+        "defaultScale":4.68,
+        "instancing":{"mode":"auto"},
         "validation":{"maxTriangles":30000,"maxDimensionMeters":10},
         "materialPolicy":{"maxMaterials":6,"allowTransparent":false}
       },
@@ -132,11 +135,13 @@
     {
       "id":"campus.streetLight.A",
       "label":"Street Light A",
+      "source":{"type":"glb","url":"/static/factory/assets/street-light-a.glb"},
       "fallbackTemplate":"street_light",
       "glb":{
         "specVersion":"0.1","unit":"meter",
         "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
         "anchor":"center-base",
+        "defaultScale":6.09,
         "instancing":{"mode":"auto"},
         "validation":{"maxTriangles":15000,"maxDimensionMeters":12},
         "materialPolicy":{"maxMaterials":4,"allowTransparent":false}
@@ -146,9 +151,82 @@
     {
       "id":"campus.tree.A",
       "label":"Landscape Tree A",
+      "source":{"type":"glb","url":"/static/factory/assets/tree-a.glb"},
       "fallbackTemplate":"tree",
-      "anchor":"center-base",
+      "glb":{
+        "specVersion":"0.1","unit":"meter",
+        "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
+        "anchor":"center-base",
+        "defaultScale":4.70,
+        "instancing":{"mode":"auto"},
+        "validation":{"maxTriangles":35000,"maxDimensionMeters":10},
+        "materialPolicy":{"maxMaterials":4,"allowTransparent":false}
+      },
       "userData":{"category":"landscape"}
+    },
+    {
+      "id":"semiconductor.exhaustStack.A",
+      "label":"Exhaust Stack A",
+      "source":{"type":"glb","url":"/static/factory/assets/exhaust-stack-a.glb"},
+      "fallbackTemplate":"exhaust_stack",
+      "glb":{
+        "specVersion":"0.1","unit":"meter",
+        "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
+        "anchor":"center-base",
+        "defaultScale":5.59,
+        "instancing":{"mode":"auto"},
+        "validation":{"maxTriangles":15000,"maxDimensionMeters":10},
+        "materialPolicy":{"maxMaterials":4,"allowTransparent":false}
+      },
+      "userData":{"category":"facility","placement":"roof","system":"exhaust"}
+    },
+    {
+      "id":"semiconductor.scrubber.A",
+      "label":"Scrubber A",
+      "source":{"type":"glb","url":"/static/factory/assets/scrubber-a.glb"},
+      "fallbackTemplate":"scrubber",
+      "glb":{
+        "specVersion":"0.1","unit":"meter",
+        "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
+        "anchor":"center-base",
+        "defaultScale":6.03,
+        "instancing":{"mode":"auto"},
+        "validation":{"maxTriangles":50000,"maxDimensionMeters":10},
+        "materialPolicy":{"maxMaterials":6,"allowTransparent":false}
+      },
+      "userData":{"category":"facility","placement":"roof","system":"exhaust-treatment"}
+    },
+    {
+      "id":"semiconductor.gasCabinet.A",
+      "label":"Gas Cabinet A",
+      "source":{"type":"glb","url":"/static/factory/assets/gas-cabinet-a.glb"},
+      "fallbackTemplate":"gas_cabinet",
+      "glb":{
+        "specVersion":"0.1","unit":"meter",
+        "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
+        "anchor":"center-base",
+        "defaultScale":2.18,
+        "instancing":{"mode":"auto"},
+        "validation":{"maxTriangles":20000,"maxDimensionMeters":5},
+        "materialPolicy":{"maxMaterials":5,"allowTransparent":false}
+      },
+      "userData":{"category":"facility","system":"specialty-gas"}
+    },
+    {
+      "id":"ehs.emergencyShower.A",
+      "label":"Emergency Shower A",
+      "source":{"type":"glb","url":"/static/factory/assets/emergency-shower-a.glb"},
+      "fallbackTemplate":"emergency_shower",
+      "glb":{
+        "specVersion":"0.1","unit":"meter",
+        "coordinate":{"upAxis":"+Y","forwardAxis":"-Z"},
+        "anchor":"center-base",
+        "defaultScale":2.07,
+        "instancing":{"mode":"auto"},
+        "validation":{"maxTriangles":20000,"maxDimensionMeters":5},
+        "materialPolicy":{"maxMaterials":5,"allowTransparent":false}
+      },
+      "userData":{"category":"ehs","system":"emergency-response"}
     }
   ],
   "assets": [
@@ -183,6 +261,26 @@
         {"x":60,"y":90,"scale":1.1},{"x":60,"y":130},{"x":60,"y":185,"scale":1.2},
         {"x":700,"y":135},{"x":700,"y":190,"scale":1.15},{"x":700,"y":245},
         {"x":700,"y":315,"scale":1.2},{"x":700,"y":380},{"x":700,"y":450,"scale":1.1}
+      ]
+    },
+    {
+      "id":"GAS_CABINETS",
+      "label":"Illustrative Specialty Gas Cabinets",
+      "asset":"semiconductor.gasCabinet.A",
+      "template":"gas_cabinet",
+      "positions":[
+        {"x":252,"y":535,"rotationDeg":90},
+        {"x":252,"y":175,"rotationDeg":90}
+      ]
+    },
+    {
+      "id":"EHS_EMERGENCY_SHOWERS",
+      "label":"Illustrative Emergency Shower Stations",
+      "asset":"ehs.emergencyShower.A",
+      "template":"emergency_shower",
+      "positions":[
+        {"x":270,"y":315,"rotationDeg":90},
+        {"x":270,"y":425,"rotationDeg":90}
       ]
     }
   ]

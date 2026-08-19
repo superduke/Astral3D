@@ -142,6 +142,63 @@ function buildTemplate(template: string): ProceduralAssetPart[] {
         },
       ];
 
+    case "gas_cabinet":
+      return [
+        {
+          name: "cabinet",
+          geometry: new THREE.BoxGeometry(1.2, 2.2, 0.8),
+          material: material(0xd9dde0, 0.72, 0.18),
+          offset: new THREE.Vector3(0, 1.1, 0),
+        },
+        {
+          name: "plinth",
+          geometry: new THREE.BoxGeometry(1.3, 0.16, 0.9),
+          material: material(0x343d43, 0.64, 0.42),
+          offset: new THREE.Vector3(0, 0.08, 0),
+        },
+        {
+          name: "exhaust_collar",
+          geometry: new THREE.CylinderGeometry(0.22, 0.22, 0.18, 16),
+          material: material(0x66727a, 0.5, 0.5),
+          offset: new THREE.Vector3(0, 2.28, 0),
+        },
+      ];
+
+    case "emergency_shower":
+      return [
+        {
+          name: "pipe",
+          geometry: new THREE.CylinderGeometry(0.06, 0.06, 2.3, 12),
+          material: material(0x1f8b4c, 0.46, 0.34),
+          offset: new THREE.Vector3(0, 1.15, 0),
+        },
+        {
+          name: "shower_arm",
+          geometry: new THREE.BoxGeometry(0.95, 0.08, 0.08),
+          material: material(0x1f8b4c, 0.46, 0.34),
+          offset: new THREE.Vector3(-0.42, 2.18, 0),
+        },
+        {
+          name: "shower_bowl",
+          geometry: new THREE.CylinderGeometry(0.32, 0.38, 0.08, 16),
+          material: material(0xb8c1c5, 0.28, 0.76),
+          offset: new THREE.Vector3(-0.82, 2.12, 0),
+        },
+        {
+          name: "eyewash_bowl",
+          geometry: new THREE.CylinderGeometry(0.3, 0.34, 0.08, 16),
+          material: material(0xb8c1c5, 0.28, 0.76),
+          offset: new THREE.Vector3(0, 0.86, 0),
+        },
+        {
+          name: "pull_handle",
+          geometry: new THREE.TorusGeometry(0.18, 0.035, 8, 16),
+          material: material(0xf2c230, 0.5, 0.32),
+          offset: new THREE.Vector3(-0.42, 1.86, 0),
+          rotation: new THREE.Euler(Math.PI / 2, 0, 0),
+        },
+      ];
+
     default:
       return [
         {

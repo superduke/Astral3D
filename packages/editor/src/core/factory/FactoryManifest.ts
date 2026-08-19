@@ -21,6 +21,8 @@ export type FactoryAssetTemplate =
   | "transformer"
   | "street_light"
   | "tree"
+  | "gas_cabinet"
+  | "emergency_shower"
   | string;
 
 export type FactoryScale = number | [number, number, number];
