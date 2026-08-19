@@ -27,6 +27,18 @@ export type FactoryAssetTemplate =
 
 export type FactoryScale = number | [number, number, number];
 
+export interface FactoryBuildingEntrance {
+  enabled?: boolean;
+  /** Explicit footprint edge index. Omit to choose the nearest road edge. */
+  edgeIndex?: number;
+  /** 0..1 position along the chosen facade edge. */
+  offset?: number;
+  width?: number;
+  depth?: number;
+  height?: number;
+  canopyDepth?: number;
+}
+
 export interface FactoryBuilding {
   id: string;
   label?: string;
@@ -39,6 +51,7 @@ export interface FactoryBuilding {
   z: number;
   floors?: number;
   facade?: {
+    /** Architectural grammar profile, e.g. semiconductor-fab-modern-v1. */
     template?: string;
     windowBand?: boolean;
     panelWidth?: number;
@@ -46,12 +59,15 @@ export interface FactoryBuilding {
     louverBands?: number;
     loadingBayCount?: number;
     canopy?: boolean;
+    entrance?: FactoryBuildingEntrance;
   };
   roof?: {
     parapet?: boolean;
     hvacCount?: number;
     exhaustCount?: number;
     scrubberCount?: number;
+    screen?: boolean;
+    screenHeight?: number;
   };
   userData?: Record<string, unknown>;
 }
@@ -100,6 +116,7 @@ export interface FactoryCampusDetails {
   perimeterFence?: boolean;
   fenceHeight?: number;
   fencePostSpacing?: number;
+  equipmentYards?: boolean;
   gates?: FactoryGate[];
 }
 
