@@ -11,7 +11,20 @@ interface MaterialTuning {
   color?: number;
   roughness?: number;
   metalness?: number;
+  depthTest?: boolean;
+  depthWrite?: boolean;
+  polygonOffset?: boolean;
+  polygonOffsetFactor?: number;
+  polygonOffsetUnits?: number;
 }
+
+const SURFACE_RENDER_ORDER = {
+  site: 0,
+  green: 10,
+  parking: 20,
+  road: 30,
+  marking: 40,
+} as const;
 
 /**
  * Small, deterministic visual-audit pass for generated L2/L2.5 factories.
@@ -19,6 +32,14 @@ interface MaterialTuning {
  * This is intentionally separate from semantic generation and GLB replacement:
  * it only improves overview readability of procedural geometry. It must not
  * encode real process-system meaning through color.
+ *
+ * Ground overlays deliberately use explicit render layers. Large factory sites
+ * are commonly viewed from hundreds of metres away, where centimetre-scale
+ * GREEN / PARKING / ROAD separations are too small for a conventional depth
+ * buffer to resolve reliably. Let SITE own the ground depth, keep the planar
+ * overlays depth-tested but non-depth-writing, then resolve their intentional
+ * stacking with renderOrder. This removes camera-motion z-fighting without
+ * disabling occlusion against buildings, pipe racks or other real 3D objects.
  */
 export class FactoryVisualTuner {
   constructor(private readonly groundOffset = 0) {}
@@ -31,7 +52,14 @@ export class FactoryVisualTuner {
     this.tuneCampusMarkings(root);
     this.tunePipeRacks(root);
 
-    root.userData.visualAuditStage = "overview-readability-0.2";
+    root.userData.visualAuditStage = "overview-readability-0.3";
+    root.userData.surfaceRenderPolicy = {
+      site: "depth-write",
+      green: "depth-test/no-write/order-10",
+      parking: "depth-test/no-write/order-20",
+      road: "depth-test/no-write/order-30",
+      marking: "depth-test/no-write/order-40/polygon-offset",
+    };
     return root;
   }
 
@@ -59,14 +87,18 @@ export class FactoryVisualTuner {
         roughness: 0.98,
         metalness: 0,
         side: THREE.DoubleSide,
+        depthTest: true,
+        depthWrite: true,
       }),
     );
     surface.name = "SITE_SURFACE";
     surface.position.y = this.groundOffset - 0.06;
+    surface.renderOrder = SURFACE_RENDER_ORDER.site;
     surface.receiveShadow = true;
     surface.userData = {
       assetType: "site_surface",
       generatedBy: "FactoryVisualTuner",
+      surfaceLayer: "site",
     };
 
     // Keep the floor behind the semantic boundary in the scene tree as well as
@@ -80,6 +112,15 @@ export class FactoryVisualTuner {
     if (material?.color) {
       material.color.setHex(0x8ea2ae);
       material.needsUpdate = true;
+    }
+
+    const surface = root.getObjectByName("SITE_SURFACE");
+    if ((surface as THREE.Mesh | undefined)?.isMesh) {
+      surface!.renderOrder = SURFACE_RENDER_ORDER.site;
+      this.tuneMaterial(surface!, {
+        depthTest: true,
+        depthWrite: true,
+      });
     }
   }
 
@@ -135,15 +176,18 @@ export class FactoryVisualTuner {
   }
 
   private tuneRoadsAndParking(root: THREE.Group): void {
-    const roads = root.getObjectByName("ROADS");
-    roads?.traverse((object) => {
+    const green = root.getObjectByName("GREEN");
+    green?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
-        // Roads should be the darkest major plan element in overview mode.
-        color: 0x282f36,
-        roughness: 0.97,
+        color: 0x5e845f,
+        roughness: 1,
         metalness: 0,
+        depthTest: true,
+        depthWrite: false,
       });
+      object.renderOrder = SURFACE_RENDER_ORDER.green;
+      object.userData.surfaceLayer = "green";
     });
 
     const parking = root.getObjectByName("PARKING");
@@ -154,17 +198,26 @@ export class FactoryVisualTuner {
         color: 0x3e4952,
         roughness: 0.96,
         metalness: 0,
+        depthTest: true,
+        depthWrite: false,
       });
+      object.renderOrder = SURFACE_RENDER_ORDER.parking;
+      object.userData.surfaceLayer = "parking";
     });
 
-    const green = root.getObjectByName("GREEN");
-    green?.traverse((object) => {
+    const roads = root.getObjectByName("ROADS");
+    roads?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       this.tuneMaterial(object, {
-        color: 0x5e845f,
-        roughness: 1,
+        // Roads should be the darkest major plan element in overview mode.
+        color: 0x282f36,
+        roughness: 0.97,
         metalness: 0,
+        depthTest: true,
+        depthWrite: false,
       });
+      object.renderOrder = SURFACE_RENDER_ORDER.road;
+      object.userData.surfaceLayer = "road";
     });
   }
 
@@ -176,19 +229,43 @@ export class FactoryVisualTuner {
     roadMarkings?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       if (object.name.includes("CENTER_DASH")) {
-        this.tuneMaterial(object, { color: 0xf2c55b });
-        object.renderOrder = 3;
+        this.tuneMaterial(object, {
+          color: 0xf2c55b,
+          depthTest: true,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -4,
+          polygonOffsetUnits: -4,
+        });
+        object.renderOrder = SURFACE_RENDER_ORDER.marking;
+        object.userData.surfaceLayer = "road_marking";
       } else if (object.name.includes("EDGE_")) {
-        this.tuneMaterial(object, { color: 0xf2f5f7 });
-        object.renderOrder = 3;
+        this.tuneMaterial(object, {
+          color: 0xf2f5f7,
+          depthTest: true,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -4,
+          polygonOffsetUnits: -4,
+        });
+        object.renderOrder = SURFACE_RENDER_ORDER.marking;
+        object.userData.surfaceLayer = "road_marking";
       }
     });
 
     const parkingSlots = details.getObjectByName("PARKING_SLOTS");
     parkingSlots?.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
-      this.tuneMaterial(object, { color: 0xf7f9fa });
-      object.renderOrder = 3;
+      this.tuneMaterial(object, {
+        color: 0xf7f9fa,
+        depthTest: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -4,
+      });
+      object.renderOrder = SURFACE_RENDER_ORDER.marking;
+      object.userData.surfaceLayer = "parking_marking";
     });
   }
 
@@ -227,6 +304,21 @@ export class FactoryVisualTuner {
       }
       if (tuning.metalness !== undefined && "metalness" in target) {
         target.metalness = tuning.metalness;
+      }
+      if (tuning.depthTest !== undefined) {
+        target.depthTest = tuning.depthTest;
+      }
+      if (tuning.depthWrite !== undefined) {
+        target.depthWrite = tuning.depthWrite;
+      }
+      if (tuning.polygonOffset !== undefined) {
+        target.polygonOffset = tuning.polygonOffset;
+      }
+      if (tuning.polygonOffsetFactor !== undefined) {
+        target.polygonOffsetFactor = tuning.polygonOffsetFactor;
+      }
+      if (tuning.polygonOffsetUnits !== undefined) {
+        target.polygonOffsetUnits = tuning.polygonOffsetUnits;
       }
       target.needsUpdate = true;
     }
